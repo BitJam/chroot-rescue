@@ -1,0 +1,746 @@
+#!/bin/bash
+
+#==============================================================================
+# (C) 2019 Paul Banham <antiX@operamail.com>
+# License: GPLv3 or later
+#==============================================================================
+
+     VERSION="0.10.00"
+ VERSION_DATE="Sun Aug 27 03:21:00 MDT 2017"
+
+          TOP_DIR="/media"
+  GRAPHICAL_MENUS="true"
+
+       ME=${0##*/}
+    MY_DIR=$(dirname "$(readlink -f $0)")
+MY_LIB_DIR=$(readlink -f "$MY_DIR/../cli-shell-utils")
+   LIB_DIR="/usr/local/lib/cli-shell-utils"
+ SHELL_LIB="cli-shell-utils.bash"
+  LIB_PATH="$MY_LIB_DIR:$LIB_DIR"
+CHROOT_CMD="chroot-rescue"
+
+DEFAULT_DISTRO_NAME="Linux"
+
+MAJOR_DEV_LIST="3,8,22,179,202,254,259"
+
+TO_RMDIR=
+TO_UMOUNT=
+
+export TEXTDOMAIN="$ME"
+domain_dir="$MY_DIR/../cli-shell-utils/locale"
+test -d "$domain_dir" && export TEXTDOMAINDIR=$domain_dir
+
+K_IFS="\t"
+
+export GTK2_RC_FILES=/usr/share/themes/Default/gtk-2.0-key/gtkrc
+YAD_STD_OPTS="--center --width=900 --height=600 --button=gtk-ok:0"
+
+usage() {
+    local ret=${1:-0}
+
+cat<<Usage
+Usage: $ME [<options>]
+Look for all Linux systems under the top directory ($TOP_DIR).
+Provide a menu of all systems found and chroot into the selected
+one.
+
+Options:
+  -C  --color=<xxx>       Set color scheme to off|low|low2|bw|dark|high
+  -d  --dir=<directory>   Directory to look for linux systems under
+                          Default: $TOP_DIR
+  -h  --help              Show this usage
+  -m  --menu              Output menu information then exit
+  -s  --scan              Scan all partitions for Linux systems
+  -S  --separator=<x>     Character to separate columns of data
+                          Default: $K_IFS
+  -v  --version           Show the version number and date
+Usage
+    exit $ret
+}
+#------------------------------------------------------------------------------
+# Callback routine to evalute some command line args before the root user test.
+#------------------------------------------------------------------------------
+eval_early_argument() {
+    local val=${1#*=}
+    case $1 in
+               -help|h) usage                ;;
+            -version|v) show_version         ;;
+    esac
+}
+
+#------------------------------------------------------------------------------
+# Callback routine to evaluate arguments after the root user check.  We also
+# need to include the early args to avoid unknown argument errors.
+#------------------------------------------------------------------------------
+eval_argument() {
+    local arg=$1  val=$2
+    case $arg in
+             -color|C)  COLOR_SCHEME=$val                ;;
+               -dir|d)  TOP_DIR=$val                     ;;
+              -menu|m)  MENU_MODE=true                   ;;
+         -separator|S)  K_IFS=$val                       ;;
+              -scan|s)  DO_SCAN=true                     ;;
+         -separator=*)  K_IFS=$val                       ;;
+             -color=*)  COLOR_SCHEME=$val                ;;
+                    *)  fatal "Unknown parameter %s" "-$arg"  ;;
+    esac
+}
+
+#------------------------------------------------------------------------------
+# Callback routine to see if an argument requires a value to follow it.
+#------------------------------------------------------------------------------
+takes_param() {
+    case $1 in
+          -color|C) return 0 ;;
+            -dir|d) return 0 ;;
+      -separator|s) return 0 ;;
+    esac
+    return 1
+}
+
+#==============================================================================
+# The main routine.  Called from the very bottom of this script.
+#==============================================================================
+main() {
+    local SHIFT  SHORT_STACK="dCcghmv"
+
+    set_colors
+
+    local orig_args="$*"
+
+    # Let non-root users get usage.  Need to get --ignore-config early.
+    read_early_params "$@"
+    #need_root
+    read_params "$@"
+
+    set_colors $COLOR_SCHEME
+
+    shift $SHIFT
+    fatal_n0 $# "Extra command line arguments: %s" "$*"
+
+    need_root
+    if [ "$DO_SCAN" ]; then
+        trap on_exit EXIT
+        scan_devices "$dir"
+    fi
+
+    K_IFS=$(printf "$K_IFS")
+
+    local chroot_cmd=$(find_my_cmd "$CHROOT_CMD")
+    #trap clean_up EXIT
+
+    test -e "$TOP_DIR" || ui_fatal "Top directory %s not found" "$TOP_DIR"
+    test -d "$TOP_DIR" || ui_fatal "Top directory %s is not a directory" "$TOP_DIR"
+
+    TOP_DIR=${TOP_DIR%/}/
+
+    local Distro=$"Distro"  Date=$"Date"  Dir=$"Dir"  Device=$"Device"
+    local Size=$"Size"  Arch=$"Arch"
+
+    local title=$"Please select a Linux System to visit"
+    header_4="$Distro${K_IFS}$Date${K_IFS}$Dir${K_IFS}$Device"
+    header_5="$header_4${K_IFS}$Size"
+    header_5="$header_4${K_IFS}$Arch"
+
+    if [ "$MENU_MODE" ]; then
+        local data=$(main_data_5 "$TOP_DIR")
+        #echo -e "$data" ; return
+
+        local line_cnt=$(count_lines "$data")
+        case $line_cnt in
+            0) ui_fatal "No Linux systems were found under %s" "$TOP_DIR" ;;
+            1) ui_note  "Only one Linux system was found"
+        esac
+
+        ui_combo_box 5 "$title"  "$header_5" "$data"  $line_cnt
+
+        exit 0
+    fi
+
+    local sudo=sudo
+    [ $UID -eq 0 ] && sudo=
+
+    shout_title $"Starting %s" "$ME"
+    set_window_title "$ME"
+
+    while true; do
+        local data=$(main_data_5 "$TOP_DIR")
+        #echo -e "$data" ; return
+
+        case $(count_lines "$data") in
+            0) fatal "No Linux systems were found under %s" "$TOP_DIR" ;;
+            1) Msg "Only one Linux system was found"
+        esac
+
+        local dir
+        select_cols_5  dir "$title"  "$header_5" "$data"
+        #yad_combo_box_5 dir  "$title"  "$header_5" "$data"
+
+        case $dir in
+            rescan) continue ;;
+              quit) break ;;
+        esac
+        local distro=$(distro_name "$dir" | tr -s "[:space:]" "_")
+
+        test -d "$dir" || fatal "Strange, %s is not a directory" "$dir"
+
+        echo
+        msg "Chrooting into distro %s" "$(pq "$distro")"
+        msg "Directory: %s  Device: %s"  "$(pq "$dir")" "$(pq $(fs_dev "$dir"))"
+        msg  "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl><d>")"
+
+        local args
+        [ "$distro" = "$DEFAULT_DISTRO_NAME"  ] || args="--prompt $distro"
+        echo "$BAR_80"
+        $sudo $chroot_cmd --quiet --prompt "$distro" "$dir" 
+        echo "$BAR_80"
+    done
+
+    exit_done
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+find_my_cmd() {
+    local cmd=$1
+    _find_my_cmd $cmd || ui_fatal "Could not find command %s" "$cmd"
+}
+
+_find_my_cmd() {
+    local name=$1  cmd
+    test -x ./$name && cmd=./$name
+
+    : ${cmd:=$(which "$name" 2>/dev/null)}
+    [ -z "$cmd" ]  && return 1
+    test -x "$cmd" || return 1
+    echo "$cmd"
+    return 0
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+main_data_3() {
+    local top_dir=$1  dir
+    while read dir; do
+        [ -z "$dir" ]        && continue
+        is_mountpoint "$dir" || continue
+        is_linux "$dir"      || continue
+        local label=$(linux_entry "$dir")
+        echo "$dir$K_IFS$label"
+    done <<Get_Dirs
+$(find "$top_dir" -mindepth 1 -maxdepth 1 -type d)
+Get_Dirs
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+main_data_4() {
+    local top_dir=$1  dir
+    while read dir; do
+        [ -z "$dir" ]        && continue
+        is_mountpoint "$dir" || continue
+        is_linux "$dir"      || continue
+        echo "$dir$K_IFS$(linux_entry "$dir")"
+    done <<Get_Dirs
+$(find "$top_dir" -mindepth 1 -maxdepth 1 -type d)
+Get_Dirs
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+main_data_5_old() {
+    local top_dir=$1  dir
+    while read dir; do
+        [ -z "$dir" ]        && continue
+        is_mountpoint "$dir" || continue
+        is_linux "$dir"      || continue
+        echo "$dir$K_IFS$(linux_entry "$dir")$K_IFS$(human_size "$dir")"
+        #echo "$dir$K_IFS$(linux_entry "$dir")"
+    done <<Get_Dirs
+$(find "$top_dir" -mindepth 1 -maxdepth 1 -type d)
+Get_Dirs
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+main_data_5() {
+    local top_dir=$1  dir
+    while read dir; do
+        [ -z "$dir" ]        && continue
+        is_mountpoint "$dir" || continue
+        is_linux "$dir"      || continue
+        #echo "$dir$K_IFS$(linux_entry "$dir")$K_IFS$(human_size "$dir")"
+        echo "$dir$K_IFS$(linux_entry "$dir")$K_IFS$(get_arch "$dir")"
+        #echo "$dir$K_IFS$(linux_entry "$dir")"
+    done <<Get_Dirs
+$(find "$top_dir" -mindepth 1 -maxdepth 1 -type d)
+Get_Dirs
+}
+
+
+human_size() {
+    df -h "$1" 2>/dev/null | tail -n1 | awk '{print $2}'
+}
+
+get_arch() {
+    if test -d "$dir/lib64"; then
+        echo "64-bit"
+    else
+        echo "32-bit"
+    fi
+}
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+linux_entry() {
+    local dir=$1
+    local distro=$(distro_name "$dir")
+    local date=$(fs_date "$dir")
+    local dev=$(fs_dev "$dir")
+    local base=$(basename "$dir")
+    echo "$distro$K_IFS$date$K_IFS$base$K_IFS$dev"
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+is_linux() {
+    local dir=$1  sub
+    for sub in etc bin lib usr; do
+        test -d "$dir/$sub" || return 1
+    done
+    return 0
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+distro_name() {
+    local dir=$1  distro
+    local fname distro
+    for fname in lsb-release  os-release; do
+        local file="$dir/etc/$fname"
+        
+        test -e "$file" || continue
+
+        distro=$(get_value PRETTY_NAME "$file")
+        [ -n "$distro" ] && break
+    done
+    echo -n ${distro:-$DEFAULT_DISTRO_NAME}
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+get_value() {
+    local field=$1  file=$2
+    sed -n -r "s/^$field=\"?([^\x22]+)\"?.*/\1/p" "$file" | head -n1
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+fs_dev() {
+    local dir=$1
+    local dev=$(df "$dir" | tail -n1 | awk '{print $1}')
+    echo ${dev##*/}
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+fs_date() {
+    local dir=$1  f
+    for f in "$dir"/* "$dir"/etc/*[-_]version ; do
+        stat -c %z $f 2>/dev/null
+        done | sort | head -n1 | cut -d" " -f1
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+fs_date_time() {
+    local dir=$1  f
+    for f in "$dir"/* "$dir"/etc/*[-_]version ; do
+        stat -c %z $f 2>/dev/null
+        done | sort | head -n1 | cut -d. -f1
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+select_cols_3() {
+    local var=$1 title=$2 list=$3  h1=$4  h2=$5  h3=$6
+    local orig_ifs=$IFS
+    IFS=$K_IFS
+
+    # Get field widths
+    local w1=${#h1}  w2=${#h2}
+    local p f1 f2 f3
+
+    while read p f1 f2 f3; do
+        [ $w1 -lt ${#f1} ] &&  w1=${#f1}
+        [ $w2 -lt ${#f2} ] &&  w2=${#f2}
+    done<<Widths
+$(echo "$list")
+Widths
+
+    local fmt="$m_co%-${w1}s $hi_co%-${w2}s $date_co%-s$nc_co"
+    local hfmt="$head_co%s %s %-s$nc_co\n"
+    local data="$P_IFS$(printf "$hfmt" "$(rpad $w1 "$h1")" "$(rpad $w2 "$h2")" "$h3")\n"
+    while read p f1 f2 f3; do
+        [ ${#f1} -gt 0 ] || continue
+        data="$data$p$P_IFS$(printf "$fmt" "$(rpad $w1 "$f1")" "$f2" "$f3")\n"
+    done<<Print
+$(echo "$list")
+Print
+
+    IFS=$orig_ifs
+
+    data="$data$(menu_printf 'rescan' "$(hq $"Rescan directory")")\n"
+    data="$data$(menu_printf 'quit'    "$(hq $"Quit")")\n"
+    my_select $var "$title" "$data"
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+select_cols_4() {
+    local var=$1  title=$2  header=$3  list=$4
+    local h1 h2 h3 h4  orig_ifs=$IFS
+
+    local IFS=$K_IFS
+
+    read h1 h2 h3 h4 <<Header
+$(echo -e "$header")
+Header
+
+    # Get field widths
+    local w1=${#h1}  w2=${#h2}  w3=${#h3}
+    local p f1 f2 f3 f4
+
+    while read p f1 f2 f3; do
+        [ $w1 -lt ${#f1} ] &&  w1=${#f1}
+        [ $w2 -lt ${#f2} ] &&  w2=${#f2}
+        [ $w3 -lt ${#f3} ] &&  w3=${#f3}
+    done<<Widths
+$(echo "$list")
+Widths
+
+    local fmt="$m_co%-${w1}s $hi_co%-${w2}s  %-${w3}s $date_co%-s $nc_co"
+    local hfmt="$head_co%s %s  %s %-s$nc_co\n"
+    local data="$P_IFS$(printf "$hfmt" "$(rpad $w1 "$h1")" "$(rpad $w2 "$h2")" \
+        "$(rpad $w3 "$h3")" "$h4")\n"
+
+    while read p f1 f2 f3 f4; do
+        [ ${#f1} -gt 0 ] || continue
+        data="$data$p$P_IFS$(printf "$fmt" "$(rpad $w1 "$f1")" "$f2" "$f3" "$f4")\n"
+    done<<Print
+$(echo "$list")
+Print
+
+    IFS=$orig_ifs
+
+    data="$data$(menu_printf 'rescan' "$(hq $"Rescan directory")")\n"
+    data="$data$(menu_printf 'quit'    "$(hq $"Quit")")\n"
+    my_select $var "$title" "$data"
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+select_cols_5() {
+    local var=$1  title=$2  header=$3  list=$4
+    local h1 h2 h3 h4 h5 orig_ifs=$IFS
+
+    local IFS=$K_IFS
+
+    read h1 h2 h3 h4 h5 <<Header
+$(echo -e "$header")
+Header
+
+    # Get field widths
+    local w1=${#h1}  w2=${#h2}  w3=${#h3} w4=${#h4}
+    local p f1 f2 f3 f4 f5
+
+    while read p f1 f2 f3 f4; do
+        [ $w1 -lt ${#f1} ] &&  w1=${#f1}
+        [ $w2 -lt ${#f2} ] &&  w2=${#f2}
+        [ $w3 -lt ${#f3} ] &&  w3=${#f3}
+        [ $w4 -lt ${#f4} ] &&  w4=${#f4}
+    done<<Widths
+$(echo "$list")
+Widths
+
+    local fmt="$m_co%-${w1}s $hi_co%-${w2}s  %-${w3}s %-${w4}s $date_co%-s $nc_co"
+    local hfmt="$head_co%s %s  %s %s %-s$nc_co\n"
+    local data="$P_IFS$(printf "$hfmt" "$(rpad $w1 "$h1")" "$(rpad $w2 "$h2")" \
+        "$(rpad $w3 "$h3")" "$(rpad $w4 "$h4")" "$h5")\n"
+
+    while read p f1 f2 f3 f4 f5; do
+        [ ${#f1} -gt 0 ] || continue
+        data="$data$p$P_IFS$(printf "$fmt" "$(rpad $w1 "$f1")" "$f2" "$f3" "$f4" "$f5")\n"
+    done<<Print
+$(echo "$list")
+Print
+
+    IFS=$orig_ifs
+
+    data="$data$(menu_printf 'rescan' "$(hq $"Rescan directory")")\n"
+    data="$data$(menu_printf 'quit'    "$(hq $"Quit")")\n"
+    my_select $var "$title" "$data"
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+ui_combo_box() {
+
+    local cols=$1 title=$2   header=$3  data=$4  cnt=${5:-$(count_lines "$data")}
+    printf "combo_box_%s: %s\n" "$cols" "$cnt"
+    printf "title: $title\n"
+    printf "header: $header\n"
+    printf "$data\n"
+    printf "end:\n"
+}
+
+ui_fatal() {
+    if [ "$MENU_MODE" ]; then
+        men_fatal "$@" 
+    else
+        fatal "$@"
+    fi
+}
+
+men_fatal() {
+    local fmt=$1 ; shift;
+    printf "fatal: $fmt\n" "$@" | strip_ansi
+    exit 2
+}
+
+ui_note() {
+    if [ "$MENU_MODE" ]; then
+        men_note "$@" | strip_ansi
+    else
+        Msg "$@"
+    fi
+}
+
+men_note() {
+    local fmt=$1 ; shift;
+    printf "note: $fmt\n" "$@" | strip_ansi
+}
+
+
+#------------------------------------------------------------------------------
+# Mount all likely partitions (that are not already mounted?)
+#------------------------------------------------------------------------------
+scan_devices() {
+    local NAME TYPE FSTYPE LABEL MOUNTPOINT
+    while read line; do
+        [ ${#line} -gt 0 -a -z "${line##NAME=*}" ] || continue
+
+        eval "$line"
+
+        # don't chroot to ourselves
+        [ "$MOUNTPOINT" = "/" ] && continue
+
+        # Don't chroot to something mounted under same top directory
+        [ -n "$MOUNTPOINT" -a  -z "${MOUNTPOINT##$TOP_DIR*}" ] && continue
+
+        case $FSTYPE in
+                 ext[234]) ;;
+            brtfs|jfs|xfs) ;;
+                        *) continue ;;
+        esac
+
+        local dev="/dev/$NAME"
+        local mntpnt=$(unique_mp "$NAME" "$LABEL")
+       
+        if [ -n "$MOUNTPOINT" ]; then
+            try_mount "$MOUNTPOINT" "$mntpnt" --bind || continue
+        else
+            try_mount "$dev" "$mntpnt" || continue
+        fi
+        #printf "mounted %s  at %s\n"  "$NAME"  "$mntpnt"
+
+    done<<Scan_Devices
+$(lsblk --noheading -I $MAJOR_DEV_LIST -o name,type,fstype,label,mountpoint --pairs)
+Scan_Devices
+
+}
+
+
+#------------------------------------------------------------------------------
+# Unmount the things we mounted and remove the directories we created
+#------------------------------------------------------------------------------
+on_exit()  {
+    local targ
+    while read targ; do
+        #echo "targ: $targ"
+        [ -z "$targ" ] && continue
+        cmd umount --recursive "$targ"
+    done<<Umount
+$(echo -e "$TO_UMOUNT")
+Umount
+
+    while read targ; do
+        [ -z "$targ" ] && continue
+        cmd rmdir "$targ"
+    done<<Rmdir
+$(echo -e "$TO_RMDIR")
+
+Rmdir
+}
+
+#------------------------------------------------------------------------------
+# try_mount $dev $dir [args]
+#------------------------------------------------------------------------------
+try_mount() {
+    local dev=$1  dir=$2 ; shift 2
+
+    is_mountpoint "$dir" && return 1
+    if ! test -d "$dir"; then
+        mkdir -p "$dir"
+    fi
+    test -d "$dir" || return 1
+    mount "$@" "$dev" "$dir"
+    if ! is_mountpoint "$dir"; then
+        rmdir "$dir"
+        return 1
+    fi
+    if is_linux "$dir"; then
+        TO_RMDIR="$dir\n$TO_RMDIR"
+        TO_UMOUNT="$dir\n$TO_UMOUNT"
+        return 0
+    fi
+    umount "$dir"
+    rmdir "$dir"
+}
+
+
+#------------------------------------------------------------------------------
+# Function: unique_mp <dev> <uuid> <label>
+#
+# Echo the name of the first valid mntpnt constructed from the input parameters.
+#------------------------------------------------------------------------------
+unique_mp() {
+    local i  dev=$1  label=$2
+
+    first_free_mp "$label"       && return 0
+    first_free_mp "${dev#/dev/}" && return 0
+
+    return 1
+}
+
+
+#------------------------------------------------------------------------------
+# Function: first_free_mp <subdir>
+#
+# Try to use <subdir> to form a valid mountpoint.  If <subdir> fails then
+# keep trying by append "-2" up to "-9".  On success echo the complete
+# mountpoint and return true otherwise echo nothing and return false.
+#------------------------------------------------------------------------------
+first_free_mp() {
+    local i  subdir=$1
+
+    [ -z "$subdir" ]   && return 1
+    can_use_mp $subdir && return 0
+
+    for i in $(seq 2 9); do
+        can_use_mp "$subdir-$i" && return 0
+    done
+    return 1
+}
+
+#------------------------------------------------------------------------------
+# Function: can_use_mp <subdir>
+#
+# If /media is a valid new mountpoint then echo it and return true.
+# Otherwise don't echo anything and return false.
+#------------------------------------------------------------------------------
+can_use_mp() {
+    # Create trial mntpnt with bad chars converted to underscore
+    local mp="$TOP_DIR/$(printf %s "$1" | sed -r s'=(\s|[_/])+=_=g')"
+    # If it is already in use return failure
+    is_mountpoint -q $mp && return 1
+
+    # Success!
+    echo $mp
+    return 0
+}
+
+#------------------------------------------------------------------------------
+# Tell user we are done and then exit
+#------------------------------------------------------------------------------
+exit_done() {
+    say_done
+    my_exit
+}
+
+#------------------------------------------------------------------------------
+# Tell user that we're done
+#------------------------------------------------------------------------------
+say_done() {
+    msg "$(bq ">>") %s" $"done"
+}
+
+#------------------------------------------------------------------------------
+# A catch-all for things to be done right before exiting
+#------------------------------------------------------------------------------
+my_exit() {
+    local ret=${1:-0}
+
+    show_elapsed
+    exit $ret
+}
+
+#------------------------------------------------------------------------------
+# This routine is trapped on the EXIT signal.  So we always do this stuff.
+# It should *not* be interactive.
+#------------------------------------------------------------------------------
+clean_up() {
+    lib_clean_up
+    # Kill the children
+    pkill -P $$
+    unflock
+}
+
+#------------------------------------------------------------------------------
+# Load the lib either from a neighboring repo or from the standard location.
+#------------------------------------------------------------------------------
+load_lib() {
+    local file=$1  path=$2
+    unset FOUND_LIB
+
+    local dir lib found IFS=:
+    for dir in $path; do
+        lib=$dir/$file
+        test -r $lib || continue
+        if ! . $lib; then
+            printf "Error when loading library %s\n" "$lib" >&2
+            printf "This is a fatal error\n" >&2
+            exit 15
+        fi
+        FOUND_LIB=$lib
+        return 0
+    done
+
+    printf "Could not find library '%s' on path '%s'\n" "$file" "$path" >&2
+    printf "This is a fatal error\n" >&2
+    exit 17
+}
+
+#===== Start Here =============================================================
+
+load_lib "$SHELL_LIB" "$LIB_PATH"
+
+set_colors
+
+main "$@"
+
