@@ -16,6 +16,8 @@ CHROOT_DIR=
 # Show usage message and exit
 #------------------------------------------------------------------------------
 usage() {
+    show_version
+    echo
     cat<<Usage
 Usage: $ME [options] <directory>  [[--] <command> [<args>]]
 Bind Mount /sys /proc and /dev file and under <directory>.  Mount
@@ -33,7 +35,8 @@ Options:
   -P --prompt=<str>    Add this string to the prompt
   -q --quiet           Only print error messages
   -u --umount          Umount all subdirectories of the given directory
-  -v --verbose         Show commands that get executed
+  -V --verbose         Show commands that get executed
+  -v --version         Show version and exit
 
 Usage
 
@@ -54,7 +57,8 @@ eval_argument() {
             -prompt=*) ADD_PROMPT=$val                 ;;
              -quiet|q) QUIET=true                      ;;
             -umount|u) UMOUNT_ALL=true                 ;;
-           -verbose|v) VERBOSE=true                    ;;
+           -verbose|V) VERBOSE=true                    ;;
+           -version|v) show_version ; exit 0           ;;
                     *) fatal "Unknown parameter -$arg" ;;
     esac
 }
@@ -74,7 +78,7 @@ takes_param() {
 #------------------------------------------------------------------------------
 main() {
     [ $# -eq 0 ] && usage
-    local SHIFT SHORT_STACK="hnpPuv"  got_cmd
+    local SHIFT SHORT_STACK="hnpPuVv"  got_cmd
 
     read_params "$@"
     shift $SHIFT
@@ -268,7 +272,7 @@ clean_up()  {
     fi
 
     umount_all $CHROOT_DIR
-    
+
 #      local targ
 #      while read targ; do
 #          [ -z "$targ" ] && continue
@@ -378,6 +382,13 @@ fatal() {
     exit 3
 }
 
+#------------------------------------------------------------------------------
+# Show version information and then exit
+#------------------------------------------------------------------------------
+show_version() {
+    local fmt="%s version %s (%s)\n"
+    printf "$fmt" "$ME"        "$VERSION"      "$VERSION_DATE"
+}
 
 #------------------------------------------------------------------------------
 # display warning
