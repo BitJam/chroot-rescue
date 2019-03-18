@@ -178,7 +178,7 @@ main() {
     local set_arch=linux32
     test -d "$dir/lib64" && set_arch=linux64
 
-    [ -n "$DISPLAY" ] && cmd xhost +local:
+    [ -n "$DISPLAY" ] && vcmd xhost +local:
 
     # --- do the chroot --------------------------------------------------------
 
@@ -248,11 +248,15 @@ is_mountpoint() {
 clean_up()  {
 
     # disable local connections to X windows
-    [ -n "$DISPLAY" ] && cmd xhost -local:
+    [ -n "$DISPLAY" ] && vcmd xhost -local:
 
     # Try to kill all processes created in the chroot
     local procs=$(dir_procs "$CHROOT_DIR")
     if [ -n "$procs" ]; then
+        if [ -z "$QUIET" ]; then
+            echo "Killing these processes:"
+            ps u $procs
+        fi
         cmd kill $procs
         local i
         for i in $(seq 1 5); do
@@ -318,6 +322,20 @@ cmd() {
 }
 
 #------------------------------------------------------------------------------
+# Only show output of command in --verbose mode
+#------------------------------------------------------------------------------
+vcmd() {
+    [ "$VERBOSE$PRETEND" ] && echo "$*"
+    [ "$PRETEND" ] && return 0
+    if [ "$VERBOSE" ]; then
+        "$@"
+    else
+        "$@" &>/dev/null
+    fi
+}
+
+
+#------------------------------------------------------------------------------
 # The normal mountpoint command can fail on symlinks and in other situations.
 # This is intended to be more robust. (sorry Jerry and Gaer Boy!)
 #------------------------------------------------------------------------------
@@ -333,11 +351,17 @@ is_mountpoint() {
 #------------------------------------------------------------------------------
 qsay() {
     [ "$QUIET" ] && return
+    say "$@"
+}
+
+#------------------------------------------------------------------------------
+# Always display the message
+#------------------------------------------------------------------------------
+say() {
     local fmt=$1
     shift
     printf "$m_co$fmt$nc_co\n" "$@"
 }
-
 
 #------------------------------------------------------------------------------
 # display error message and exit
