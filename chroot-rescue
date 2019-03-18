@@ -20,8 +20,6 @@ CHROOT_DIR=
 # Show usage message and exit
 #------------------------------------------------------------------------------
 usage() {
-    show_version
-    echo
     cat<<Usage
 Usage: $ME [options] <directory>  [[--] <command> [<args>]]
 Bind Mount /sys /proc and /dev file and under <directory>.  Mount
