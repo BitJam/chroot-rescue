@@ -14,21 +14,23 @@ and run it in the chroot.  Otherwise we look for /bin/bash and then
 
 Options:
   -h --help            Show this help
-  -n --no-x            Don't allow XWindows applications to launch
+  -n --no-x            Don't allow Xwindows applications to launch
+     --pause           Pause before normal exit
   -p --pretend         Don't actually execute commands
   -P --prompt=<str>    Add this string to the prompt
   -q --quiet           Only print error messages
   -u --umount          Umount all subdirectories of the given directory
-  -v --verbose         Show commands that get executed
+  -V --verbose         Show commands that get executed
+  -v --version         Show version and exit
 
 ```
 
 ## chroot-rescue-select
 
-Offer to chroot into any Linux file system mounted under a directory
-(default /media).  The --scan option will cause it to mount all
-Linux filesystems under the directory (if they are not already
-mounted there).
+The chroot-rescue-select program will offer to chroot into any
+Linux file system mounted under a directory (default /media).
+The --scan option will cause it to mount all Linux filesystems
+under the directory (if they are not already mounted there).
 
 
 ```
