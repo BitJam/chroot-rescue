@@ -28,6 +28,7 @@ and run it in the chroot.  Otherwise we look for /bin/bash and then
 Options:
   -h --help            Show this help
   -n --no-x            Don't allow Xwindows applications to launch
+     --pause           Pause before normal exit
   -p --pretend         Don't actually execute commands
   -P --prompt=<str>    Add this string to the prompt
   -q --quiet           Only print error messages
@@ -47,6 +48,7 @@ eval_argument() {
     case $arg in
               -help|h) usage                           ;;
               -no-x|n) DISPLAY=                        ;;
+               -pause) PAUSE_EXIT=true                 ;;
            -pretend|p) PRETEND=true                    ;;
             -prompt|P) ADD_PROMPT=$val                 ;;
             -prompt=*) ADD_PROMPT=$val                 ;;
@@ -186,6 +188,11 @@ main() {
     cmd $set_arch chroot "$dir" "$cmd" $rc_args "$@" || fatal "Could not chroot to %s" "$(wq $dir)"
 
     # Clean up is done in clean_up(), trapping exit
+
+    [ "$PAUSE_EXIT" ] || exit 0
+    say "Please press %s to exit" "$(pq "<Enter>")"
+    read xxxxx
+
     exit 0
 }
 
