@@ -1,3 +1,14 @@
+# Chroot Rescue System
+
+These programs are meant to supplement the fehlix live rescue
+system.  The main thing is these allow you to get into a system
+even if its initrd.img is broken.  It also let's you get into
+multiple systems without rebooting.
+
+If it has a problem identifying a Linux distro, please let me
+know and (ideally) show me how to correctly identify that system.
+
+
 ## chroot-rescue
 
 Chroot into a Linux file system to perform repairs or to poke
