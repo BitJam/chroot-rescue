@@ -191,14 +191,19 @@ main() {
     qsay "Chrooting to %s with command %s" "$(pq $dir)" "$(pq $cmd $*)"
     qsay "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl><d>")"
 
-    cmd $set_arch chroot "$dir" "$cmd" $rc_args "$@" || fatal "Could not chroot to %s" "$(wq $dir)"
+    # Time how long we are in the chroot to distinuish bewteen chroot failing and the
+    # last comand run in the chroot failing.
+    local t1=$(get_time)
+    cmd $set_arch chroot "$dir" "$cmd" $rc_args "$@"
+    local ret=$?
+    local delta_t=$(($(get_time) - t1))
+
+    qsay "Elapsed time %s seconds" "$(pq $(awk "BEGIN {printf \"%.2f\", $delta_t / 1000}"))"
+    [ $ret -eq 1 -a $delta_t -lt 50 ] && fatal "Could not chroot to %s" "$(wq $dir)"
 
     # Clean up is done in clean_up(), trapping exit
 
-    [ "$PAUSE_EXIT" ] || exit 0
-    say "Please press %s to exit" "$(pq "<Enter>")"
-    read xxxxx
-
+    pause_exit
     exit 0
 }
 
@@ -381,6 +386,7 @@ say() {
 fatal() {
     local fmt=$1 ; shift
     printf "$ME$err_co Error:$warn_co $fmt$nc_co\n" "$@" >&2
+    pause_exit
     exit 3
 }
 
@@ -462,6 +468,18 @@ read_params() {
     done
 }
 
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+pause_exit() {
+    [ "$PAUSE_EXIT" ] || return 0
+    say "Please press %s to exit" "$(pq "<Enter>")"
+    local ans
+    read ans
+}
+
+get_time() { cut -d" " -f22 /proc/self/stat; }
 #------------------------------------------------------------------------------
 # Convenience routines to color substrings.
 #------------------------------------------------------------------------------
