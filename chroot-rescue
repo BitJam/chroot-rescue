@@ -4,8 +4,8 @@
 # License: GPLv3 or later
 #==============================================================================
 
-      VERSION="0.10"
- VERSION_DATE="Wed Feb 27 17:36:52 MST 2019"
+      VERSION="0.11"
+ VERSION_DATE="Tue Mar 19 15:15:04 MDT 2019"
 
 ME=${0##*/}
 
