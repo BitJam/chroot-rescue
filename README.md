@@ -43,6 +43,7 @@ Linux file system mounted under a directory (default /media).
 The --scan option will cause it to mount all Linux filesystems
 under the directory (if they are not already mounted there).
 
+![chroot-recue-select screenshot](/images/chroot-rescue-select-02.png)
 
 ```
 Usage: chroot-rescue-select [<options>]
