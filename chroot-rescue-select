@@ -119,6 +119,7 @@ main() {
     fatal_n0 $# "Extra command line arguments: %s" "$*"
 
     need_root
+
     if [ "$DO_SCAN" ]; then
         trap on_exit EXIT
         scan_devices "$dir"
@@ -209,7 +210,8 @@ find_my_cmd() {
 
 _find_my_cmd() {
     local name=$1  cmd
-    test -x ./$name && cmd=./$name
+    local dir=$(dirname "$0")
+    test -x "$dir/$name" && cmd="$dir/$name"
 
     : ${cmd:=$(which "$name" 2>/dev/null)}
     [ -z "$cmd" ]  && return 1
