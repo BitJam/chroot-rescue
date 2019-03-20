@@ -280,17 +280,23 @@ clean_up()  {
         [ -n "$procs" ] && cmd kill -9 $procs
     fi
 
-    umount_all $CHROOT_DIR
+    # Unmount everything under the chroot
+    if umount --help | grep -q -- --recursive; then
+        umount_all $CHROOT_DIR
 
-#      local targ
-#      while read targ; do
-#          [ -z "$targ" ] && continue
-#          is_mountpoint "$targ" || continue
-#          cmd umount --recursive "$targ"
-#      done<<Umount
-#  $(echo -e "$TO_UMOUNT")
-#  Umount
+    # Or do it the old manual way
+    else
+        local targ
+        while read targ; do
+            [ -z "$targ" ] && continue
+            is_mountpoint "$targ" || continue
+            cmd umount --recursive "$targ"
+        done<<Umount
+$(echo -e "$TO_UMOUNT")
+Umount
+    fi
 
+    # Finally remove any directories we created
     while read targ; do
         [ -z "$targ" ] && continue
         cmd rmdir "$targ"
