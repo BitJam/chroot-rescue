@@ -208,7 +208,8 @@ main() {
 }
 
 #------------------------------------------------------------------------------
-#
+# Create a bashrc file under $CHROOT/run/ that will be sourced when the bash
+# shell starts.  This allows is to set the prompt in the chroot.
 #------------------------------------------------------------------------------
 create_bashrc() {
     local dir="$1/run"  add_ps1=$2
@@ -231,7 +232,7 @@ Bashrc
 }
 
 #------------------------------------------------------------------------------
-#
+# Try to mount a block device
 #------------------------------------------------------------------------------
 try_mount() {
     local dev=$1  dir=$2
@@ -244,9 +245,11 @@ try_mount() {
     mount "$dev" "$dir"
     is_mountpoint "$dir" || fatal "Unable to mount %s at %s" "$dev" "$dir"
     TO_UMOUNT="$dir\n$TO_UMOUNT"
-
 }
 
+#------------------------------------------------------------------------------
+# We won't get fooled again!  (by symlinks)
+#------------------------------------------------------------------------------
 is_mountpoint() {
     local file=$1
     cut -d" " -f2 /proc/mounts | grep -q "^$(readlink -f $file 2>/dev/null)$"
@@ -257,7 +260,6 @@ is_mountpoint() {
 # Unmount the things we mounted and remove the directories we created
 #------------------------------------------------------------------------------
 clean_up()  {
-
     # disable local connections to X windows
     [ -n "$DISPLAY" ] && vcmd xhost -local:
 
@@ -298,7 +300,7 @@ Rmdir
 }
 
 #------------------------------------------------------------------------------
-#
+# List all processes using files *under* the given directory (note the dot)
 #------------------------------------------------------------------------------
 dir_procs() {
     local dir=$1
@@ -307,7 +309,7 @@ dir_procs() {
 }
 
 #------------------------------------------------------------------------------
-#
+# Unomount everything *under* a given directory (note the dot)
 #------------------------------------------------------------------------------
 umount_all() {
     local top=$1  dir  failed cnt=0
@@ -351,7 +353,6 @@ vcmd() {
     fi
 }
 
-
 #------------------------------------------------------------------------------
 # The normal mountpoint command can fail on symlinks and in other situations.
 # This is intended to be more robust. (sorry Jerry and Gaer Boy!)
@@ -361,7 +362,6 @@ is_mountpoint() {
     cut -d" " -f2 /proc/mounts | grep -q "^$(readlink -f $file 2>/dev/null)$"
     return $?
 }
-
 
 #------------------------------------------------------------------------------
 # Display the message unless we are in QUIET mode
@@ -468,9 +468,8 @@ read_params() {
     done
 }
 
-
 #------------------------------------------------------------------------------
-#
+# Pause before exiting if --pause was given
 #------------------------------------------------------------------------------
 pause_exit() {
     [ "$PAUSE_EXIT" ] || return 0
@@ -486,7 +485,6 @@ get_time() { cut -d" " -f22 /proc/self/stat; }
 pq()  { echo "$hi_co$*$m_co"      ;}
 cq()  { echo "$lt_green$*$m_co"   ;}
 wq()  { echo "$m_co$*$warn_co"    ;}
-
 
 #------------------------------------------------------------------------------
 # Give ANSI escape colors convenient names
