@@ -89,7 +89,7 @@ main() {
     local dir=$1 ; shift
     CHROOT_DIR=$dir
 
-    : ${ADD_PROMPT:=$dir}
+    : ${ADD_PROMPT:=($cyan$dir$nc_co) $green\\d \\t $magenta\\w$nc_co}
 
     [ "$(id -u)" -eq 0 ] || fatal "The %s program must be run as root" "$(wq $ME)"
 
@@ -217,7 +217,7 @@ create_bashrc() {
     [ "$fs_type" = 'tmpfs' ] || return 1
 
     local ps1="${lt_blue}chroot${lt_green}>$nc_co "
-    [ -n "$add_ps1" ] && ps1="($cyan$add_ps1$nc_co)\n$ps1"
+    [ -n "$add_ps1" ] && ps1="\n$add_ps1\n$ps1"
 
     file=$dir/$BASH_RC
     cat <<Bashrc > "$file"
