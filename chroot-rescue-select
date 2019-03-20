@@ -190,10 +190,11 @@ main() {
         msg "Directory: %s  Device: %s"  "$(pq "$dir")" "$(pq $(fs_dev "$dir"))"
         msg  "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl><d>")"
 
+        local prompt="($cyan$distro$nc_co) $green\d \t $magenta\w$nc_co"
         local args
         [ "$distro" = "$DEFAULT_DISTRO_NAME"  ] || args="--prompt $distro"
         echo "$BAR_80"
-        $sudo $chroot_cmd --quiet --prompt "$distro" "$dir" 
+        $sudo $chroot_cmd --quiet --prompt "$prompt" "$dir"
         echo "$BAR_80"
     done
 
@@ -327,7 +328,7 @@ distro_name() {
     local fname distro
     for fname in lsb-release  os-release; do
         local file="$dir/etc/$fname"
-        
+
         test -e "$file" || continue
 
         distro=$(get_value PRETTY_NAME "$file")
@@ -513,7 +514,7 @@ ui_combo_box() {
 
 ui_fatal() {
     if [ "$MENU_MODE" ]; then
-        men_fatal "$@" 
+        men_fatal "$@"
     else
         fatal "$@"
     fi
@@ -563,7 +564,7 @@ scan_devices() {
 
         local dev="/dev/$NAME"
         local mntpnt=$(unique_mp "$NAME" "$LABEL")
-       
+
         if [ -n "$MOUNTPOINT" ]; then
             try_mount "$MOUNTPOINT" "$mntpnt" --bind || continue
         else
