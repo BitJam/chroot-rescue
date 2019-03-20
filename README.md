@@ -62,3 +62,36 @@ Options:
                           Default: \t
   -v  --version           Show the version number and date
 ```
+
+## unpack-initrd
+
+Unpack and repack our live initrd file or a Debian initrd file.
+
+```
+Usage:  unpack-initrd [options]
+
+Unpack and repack the live initrd.gz for antiX and MX.  Also unpack
+and repack Debian initramfs files.  Supports the following forms of
+compression: bz2, gzip, lz4, lzip, lzma, xz (assuming the associated
+(de)compression tool is available.  Also supports microcode
+preambles.
+
+Options:
+  -C  --clear            Delete directory before unpacking
+  -c  --compress=<prog>  Use <prog> to recompress the initrd
+  -d  --dir=<dir>        Unpack in <dir> instead of ./initrd
+  -f  --file=<file>      Unpack <file> instead of:
+                            /live/boot-dev/antiX/initrd.gz
+      --from=<file>      Same as --file
+  -l  --level=<N>        Set compression level: 1 (fastest) -- 9 (best)
+                         (only applies to certain compression methods)
+  -h  --help             Show this usage
+  -n  --no-md5           Don't make a .md5 file in --repack mode
+  -N  --no-microcode     Do not repack microcode
+  -p  --pretend          Show commands without running them
+  -r  --repack           Repack the initrd file
+  -s  --silent           Only show error messages
+  -q  --quiet            Say very little
+  -V  --verbose          Show commands in addition to running them
+  -v  --version          Show the version then exit
+```
