@@ -5,8 +5,8 @@
 # License: GPLv3 or later
 #==============================================================================
 
-     VERSION="0.11"
- VERSION_DATE="Mon Mar 18 02:46:23 MDT 2019"
+     VERSION="0.12"
+ VERSION_DATE="Tue Mar 19 22:53:32 MDT 2019"
 
           TOP_DIR="/media"
   GRAPHICAL_MENUS="true"
