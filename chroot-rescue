@@ -202,7 +202,7 @@ main() {
     # Time how long we are in the chroot to distinguish Between chroot failing and the
     # last command run in the chroot failing.
     local t1=$(get_time)
-    cmd $set_arch chroot "$dir" "$cmd" $rc_args "$@"
+    cmd env HOME=/root $set_arch chroot "$dir" "$cmd" $rc_args "$@"
     local ret=$?
     local delta_t=$(($(get_time) - t1))
 
