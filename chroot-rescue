@@ -15,6 +15,7 @@ TO_RMDIR=
 BASH_RC="bashrc"
 MY_MNT_PNT="/mnt/$ME"
 CHROOT_DIR=
+SET_WINDOW_TITLE=
 
 #------------------------------------------------------------------------------
 # Show usage message and exit
@@ -36,6 +37,7 @@ Options:
   -p --pretend         Don't actually execute commands
   -P --prompt=<str>    Add this string to the prompt
   -q --quiet           Only print error messages
+  -t --title=<str>     Set the window title while in the chroot
   -u --umount          Umount all subdirectories of the given directory
   -V --verbose         Show commands that get executed
   -v --version         Show version and exit
@@ -58,6 +60,8 @@ eval_argument() {
             -prompt|P) ADD_PROMPT=$val                 ;;
             -prompt=*) ADD_PROMPT=$val                 ;;
              -quiet|q) QUIET=true                      ;;
+             -title|t) WINDOW_TITLE=$var               ;;
+             -title=*) WINDOW_TITLE=$var               ;;
             -umount|u) UMOUNT_ALL=true                 ;;
            -verbose|V) VERBOSE=true                    ;;
            -version|v) show_version ; exit 0           ;;
@@ -71,6 +75,7 @@ eval_argument() {
 takes_param() {
     case $1 in
          -prompt|P) return 0 ;;
+          -title|t) return 0 ;;
     esac
     return 1
 }
@@ -80,7 +85,7 @@ takes_param() {
 #------------------------------------------------------------------------------
 main() {
     [ $# -eq 0 ] && usage
-    local SHIFT SHORT_STACK="hnpPuVv"  got_cmd
+    local SHIFT SHORT_STACK="hnpPtuVv" got_cmd
 
     read_params "$@"
     shift $SHIFT
@@ -187,6 +192,9 @@ main() {
     [ -n "$DISPLAY" ] && vcmd xhost +local:
 
     # --- do the chroot --------------------------------------------------------
+
+    [ -z "$WINDOW_TITLE" ] && WINDOW_TITLE=$(printf "Chroot into %s" "$dir")
+    set_window_title "$WINDOW_TITLE"
 
     qsay "Chrooting to %s with command %s" "$(pq $dir)" "$(pq $cmd $*)"
     qsay "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl><d>")"
@@ -303,6 +311,8 @@ Umount
     done<<Rmdir
 $(echo -e "$TO_RMDIR")
 Rmdir
+
+    clear_window_title
 }
 
 #------------------------------------------------------------------------------
@@ -472,6 +482,22 @@ read_params() {
 
         eval_argument "$arg" "$val"
     done
+}
+
+#------------------------------------------------------------------------------
+# set the window title bar (if there is one)
+#------------------------------------------------------------------------------
+set_window_title() {
+    local fmt=${1:-$ME} ; shift
+    printf "\e]0;$fmt \a" "$@"
+    SET_WINDOW_TITLE=true
+}
+
+#------------------------------------------------------------------------------
+# clear the window title bar (if there is one)
+#------------------------------------------------------------------------------
+clear_window_title() {
+    [ "%SET_WINDOW_TITLE" ] && printf "\e]0; \a"
 }
 
 #------------------------------------------------------------------------------
