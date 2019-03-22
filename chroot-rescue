@@ -16,6 +16,8 @@ BASH_RC="bashrc"
 MY_MNT_PNT="/mnt/$ME"
 CHROOT_DIR=
 SET_WINDOW_TITLE=
+XAUTH_FILE="/run/Xauthority"
+MY_ENV="HOME=/root"
 
 #------------------------------------------------------------------------------
 # Show usage message and exit
@@ -189,7 +191,11 @@ main() {
     local set_arch=linux32
     test -d "$dir/lib64" && set_arch=linux64
 
-    [ -n "$DISPLAY" ] && vcmd xhost +local:
+    # Copy the XAUTHORITY file in the the chroot
+    if [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/run" ]; then
+        cp "$XAUTHORITY" "$dir/$XAUTH_FILE"
+        MY_ENV="$my_env XAUTHORITY=$XAUTH_FILE"
+    fi
 
     # --- do the chroot --------------------------------------------------------
 
@@ -202,7 +208,7 @@ main() {
     # Time how long we are in the chroot to distinguish Between chroot failing and the
     # last command run in the chroot failing.
     local t1=$(get_time)
-    cmd env HOME=/root $set_arch chroot "$dir" "$cmd" $rc_args "$@"
+    cmd env $MY_ENV $set_arch chroot "$dir" "$cmd" $rc_args "$@"
     local ret=$?
     local delta_t=$(($(get_time) - t1))
 
@@ -268,9 +274,6 @@ is_mountpoint() {
 # Unmount the things we mounted and remove the directories we created
 #------------------------------------------------------------------------------
 clean_up()  {
-    # disable local connections to X windows
-    [ -n "$DISPLAY" ] && vcmd xhost -local:
-
     # Try to kill all processes created in the chroot
     local procs=$(dir_procs "$CHROOT_DIR")
     if [ -n "$procs" ]; then
