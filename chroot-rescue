@@ -182,6 +182,8 @@ main() {
         esac
     done
 
+    mount_boot_dir "$dir"
+
     # add a bashrc file to change the prompt if we are running bash by default
     local rc_args
     if [ $# -eq 0 -a "$cmd" = "/bin/bash" -a -z "$got_cmd" ]; then
@@ -268,6 +270,26 @@ is_mountpoint() {
     local file=$1
     cut -d" " -f2 /proc/mounts | grep -q "^$(readlink -f $file 2>/dev/null)$"
     return $?
+}
+
+#------------------------------------------------------------------------------
+# Mount the boot directory in the target system
+#------------------------------------------------------------------------------
+mount_boot_dir() {
+    local dir="$1"  bdir="$1/boot"
+    test -d "$bdir"       || return 2
+    is_mountpoint "$bdir" && return 2
+
+    local fstab=$dir/etc/fstab
+    test -r "$fstab"      || return 2
+
+    local buuid=$(sed -n -r "s|^UUID=([^ \s]+)\s+/boot\s.*|\1|p" "$fstab")
+    [ -z "$buuid" ]       && return 2
+
+    cmd mount --uuid "$buuid" "$bdir"
+    is_mountpoint "$bdir" || return 3
+
+    TO_UMOUNT="$bdir\n$TO_UMOUNT"
 }
 
 #------------------------------------------------------------------------------
