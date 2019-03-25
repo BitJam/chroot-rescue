@@ -197,23 +197,21 @@ main() {
 
         mount_boot_dir "$dir"
 
-        # add a bashrc file to change the prompt if we are running bash by default
-        if [ $# -eq 0 -a "$cmd" = "/bin/bash" -a -z "$got_cmd" ]; then
-            create_bashrc "$dir" "$ADD_PROMPT"
-        fi
-
-        local set_arch=linux32
-        test -d "$dir/lib64" && set_arch=linux64
-
-        # Copy the XAUTHORITY file in the the chroot
+        # Copy the XAUTHORITY file into the the chroot
         if [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/run" ]; then
             cp "$XAUTHORITY" "$dir/$XAUTH_FILE"
             MY_ENV="$my_env XAUTHORITY=$XAUTH_FILE"
         fi
     fi
 
-    # Use the same rc file if it exists (is this wise??)
-    test -e "$dir/run/$BASH_RC" && rc_args="--rcfile /run/$BASH_RC"
+    # add a bashrc file to change the prompt if we are running bash by default
+    if [ $# -eq 0 -a "$cmd" = "/bin/bash" -a -z "$got_cmd" ]; then
+        create_bashrc "$dir" "$ADD_PROMPT"
+        rc_args="--rcfile /run/$BASH_RC"
+    fi
+
+    local set_arch=linux32
+    test -d "$dir/lib64" && set_arch=linux64
 
     # --- do the chroot --------------------------------------------------------
 
