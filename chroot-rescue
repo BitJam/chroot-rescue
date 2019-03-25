@@ -19,6 +19,11 @@ SET_WINDOW_TITLE=
 XAUTH_FILE="/run/Xauthority"
 MY_ENV="HOME=/root"
 
+LOCK_FILE="/run/$ME-lock"
+CNT_FNAME="/run/$ME-count"
+WAS_LOCKED=
+CNT_FILE=
+
 #------------------------------------------------------------------------------
 # Show usage message and exit
 #------------------------------------------------------------------------------
@@ -153,51 +158,62 @@ main() {
     test -e "$full_cmd"  || fatal "Could not find command: %s" "$(wq $full_cmd)"
     test -x "$full_cmd"  || fatal "%s is not an executable"    "$(wq $full_cmd)"
 
-    #--- make directories ---------------------------------------------------
 
-    local s subdir
-    for s in sys proc dev run tmp; do
-        subdir="$dir/$s"
-        test -d "$subdir" && continue
-        TO_RMDIR="$subdir\n$TO_RMDIR"
-        cmd mkdir "$subdir" || warn_fatal "Could not make directory %s" "$(wq $subdir)"
-    done
+    CNT_FILE="$dir/$CNT_FNAME"
+    start_lock "$LOCK_FILE" "$CNT_FILE"
 
-    #--- mount things --------------------------------------------------------
-    local targ
-    for s in sys proc dev run tmp; do
-        targ="$dir/$s"
-        is_mountpoint "$targ" && continue
-        test -d "$targ"       || continue
-        TO_UMOUNT="$targ\n$TO_UMOUNT"
-
-        case $s in
-            run) cmd mount -t tmpfs -o size=10m,nodev,mode=755 tmpfs "$targ" ;;
-            tmp) cmd mount -t tmpfs -o size=10m,nodev,mode=755 tmpfs "$targ" ;;
-              *) cmd mount --rbind /$s "$targ" ;;
-        esac
-
-        case $s in
-            sys|dev) cmd mount --make-rslave "$targ" ;;
-        esac
-    done
-
-    mount_boot_dir "$dir"
-
-    # add a bashrc file to change the prompt if we are running bash by default
     local rc_args
-    if [ $# -eq 0 -a "$cmd" = "/bin/bash" -a -z "$got_cmd" ]; then
-        create_bashrc "$dir" "$ADD_PROMPT" && rc_args="--rcfile /run/$BASH_RC"
+    if [ -z "$WAS_LOCKED" ]; then
+        #--- make directories ---------------------------------------------------
+
+        local s subdir
+        for s in sys proc dev run tmp; do
+            subdir="$dir/$s"
+            test -d "$subdir" && continue
+            TO_RMDIR="$subdir\n$TO_RMDIR"
+            cmd mkdir "$subdir" || warn_fatal "Could not make directory %s" "$(wq $subdir)"
+        done
+
+        #--- mount things --------------------------------------------------------
+        local targ
+        for s in sys proc dev run tmp; do
+            targ="$dir/$s"
+            is_mountpoint "$targ" && continue
+            test -d "$targ"       || continue
+            TO_UMOUNT="$targ\n$TO_UMOUNT"
+
+            case $s in
+                run) cmd mount -t tmpfs -o size=10m,nodev,mode=755 tmpfs "$targ" ;;
+                tmp) cmd mount -t tmpfs -o size=10m,nodev,mode=755 tmpfs "$targ" ;;
+                  *) cmd mount --rbind /$s "$targ" ;;
+            esac
+
+            case $s in
+                sys|dev) cmd mount --make-rslave "$targ" ;;
+            esac
+        done
+
+        set_count_file "$CNT_FILE"
+
+        mount_boot_dir "$dir"
+
+        # add a bashrc file to change the prompt if we are running bash by default
+        if [ $# -eq 0 -a "$cmd" = "/bin/bash" -a -z "$got_cmd" ]; then
+            create_bashrc "$dir" "$ADD_PROMPT"
+        fi
+
+        local set_arch=linux32
+        test -d "$dir/lib64" && set_arch=linux64
+
+        # Copy the XAUTHORITY file in the the chroot
+        if [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/run" ]; then
+            cp "$XAUTHORITY" "$dir/$XAUTH_FILE"
+            MY_ENV="$my_env XAUTHORITY=$XAUTH_FILE"
+        fi
     fi
 
-    local set_arch=linux32
-    test -d "$dir/lib64" && set_arch=linux64
-
-    # Copy the XAUTHORITY file in the the chroot
-    if [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/run" ]; then
-        cp "$XAUTHORITY" "$dir/$XAUTH_FILE"
-        MY_ENV="$my_env XAUTHORITY=$XAUTH_FILE"
-    fi
+    # Use the same rc file if it exists (is this wise??)
+    test -e "$dir/run/$BASH_RC" && rc_args="--rcfile /run/$BASH_RC"
 
     # --- do the chroot --------------------------------------------------------
 
@@ -273,6 +289,74 @@ is_mountpoint() {
 }
 
 #------------------------------------------------------------------------------
+# If the cnt_file exits then we are not the first ones in so increment the
+# count and skip mounting things.  We start a lock here but if we are the
+# first ones in the we end the lock after we create the cnt_file
+#------------------------------------------------------------------------------
+start_lock() {
+    local lock_file=$1  cnt_file=$2
+
+    which flock &>/dev/null || return
+
+    exec 8>"$lock_file"
+    flock -x 8
+
+    # return if we are the first ones in
+    test -e "$cnt_file" || return
+
+    # Otherwise we don't have to mount anything
+    WAS_LOCKED=true
+
+    # Increment the count
+    local cnt=$(head -n1 "$cnt_file" 2>/dev/null)
+    : ${cnt:=0}
+    echo $((cnt + 1)) > "$cnt_file"
+
+    # release lock
+    exec 8>&-
+}
+
+#------------------------------------------------------------------------------
+# This runs after we mount tmpfs at /run in the chroot.
+# Set the count file to 1.
+#------------------------------------------------------------------------------
+set_count_file() {
+    local cnt_file=$1
+
+    test -d "$(dirname "$cnt_file")" && echo 1 > "$cnt_file"
+    echo "cnt_file $cnt_file"
+    ls "$(dirname "$cn_file")"
+
+    # release lock
+    exec 8>&-
+}
+
+#------------------------------------------------------------------------------
+# Decrement count in $file. Only the last one out shuts things down
+#------------------------------------------------------------------------------
+stop_lock() {
+
+    local lock_file=$1  cnt_file=$2
+
+    which flock &>/dev/null   || return 0
+    test -e "$cnt_file"       || return 0
+
+    exec 8>"$lock_file"
+    flock -x 8
+    local cnt=$(head -n1 "$cnt_file" 2>/dev/null)
+    : ${cnt:=0}
+
+    cnt=$((cnt - 1))
+
+    echo $cnt > "$cnt_file"
+    exec 8>&-
+
+    [ "$cnt" -eq 0 ]
+    return $?
+}
+
+
+#------------------------------------------------------------------------------
 # Mount the boot directory in the target system
 #------------------------------------------------------------------------------
 mount_boot_dir() {
@@ -296,6 +380,10 @@ mount_boot_dir() {
 # Unmount the things we mounted and remove the directories we created
 #------------------------------------------------------------------------------
 clean_up()  {
+
+    # Only clean up if we are the last ones out
+    stop_lock "$LOCK_FILE" "$CNT_FILE" || return
+
     # Try to kill all processes created in the chroot
     local procs=$(dir_procs "$CHROOT_DIR")
     if [ -n "$procs" ]; then
