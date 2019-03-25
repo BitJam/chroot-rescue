@@ -233,7 +233,7 @@ main_data_3() {
         local label=$(linux_entry "$dir")
         echo "$dir$K_IFS$label"
     done <<Get_Dirs
-$(find "$top_dir" -mindepth 1 -maxdepth 1 -type d)
+$(find "$top_dir" -mindepth 1 -maxdepth 2 -type d)
 Get_Dirs
 }
 
@@ -248,7 +248,7 @@ main_data_4() {
         is_linux "$dir"      || continue
         echo "$dir$K_IFS$(linux_entry "$dir")"
     done <<Get_Dirs
-$(find "$top_dir" -mindepth 1 -maxdepth 1 -type d)
+$(find "$top_dir" -mindepth 1 -maxdepth 2 -type d)
 Get_Dirs
 }
 
@@ -264,7 +264,7 @@ main_data_5_old() {
         echo "$dir$K_IFS$(linux_entry "$dir")$K_IFS$(human_size "$dir")"
         #echo "$dir$K_IFS$(linux_entry "$dir")"
     done <<Get_Dirs
-$(find "$top_dir" -mindepth 1 -maxdepth 1 -type d)
+$(find "$top_dir" -mindepth 1 -maxdepth 2 -type d)
 Get_Dirs
 }
 
@@ -281,7 +281,7 @@ main_data_5() {
         echo "$dir$K_IFS$(linux_entry "$dir")$K_IFS$(get_arch "$dir")"
         #echo "$dir$K_IFS$(linux_entry "$dir")"
     done <<Get_Dirs
-$(find "$top_dir" -mindepth 1 -maxdepth 1 -type d)
+$(find "$top_dir" -mindepth 1 -maxdepth 2 -type d)
 Get_Dirs
 }
 
