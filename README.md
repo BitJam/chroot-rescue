@@ -30,6 +30,7 @@ Options:
   -p --pretend         Don't actually execute commands
   -P --prompt=<str>    Add this string to the prompt
   -q --quiet           Only print error messages
+  -t --title=<str>     Set the window title while in the chroot
   -u --umount          Umount all subdirectories of the given directory
   -V --verbose         Show commands that get executed
   -v --version         Show version and exit
