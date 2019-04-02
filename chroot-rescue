@@ -324,8 +324,8 @@ set_count_file() {
     local cnt_file=$1
 
     test -d "$(dirname "$cnt_file")" && echo 1 > "$cnt_file"
-    echo "cnt_file $cnt_file"
-    ls "$(dirname "$cn_file")"
+    #echo "cnt_file $cnt_file"
+    #ls "$(dirname "$cn_file")"
 
     # release lock
     exec 8>&-
