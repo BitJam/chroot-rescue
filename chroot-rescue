@@ -251,15 +251,18 @@ main() {
 create_bashrc() {
     local dir="$1"  add_ps1=$2  ps1=$3
     test -d "$dir" || return 1
-    local fs_type=$(df -T "$dir" | tail -n1 | awk '{print $1}')
+    local file=$dir/$BASH_RC
+
+    local fs_type=$(df -T "$(dirname "$file")" | tail -n1 | awk '{print $1}')
+    echo "fs_type: $fs_type"
     [ "$fs_type" = 'tmpfs' ] || return 1
 
+    echo got here
     if [ -z "$ps1" ]; then
         ps1="\[${lt_blue}\[chroot\[${lt_green}\]>\[$nc_co\] "
         [ -n "$add_ps1" ] && ps1="\\n$add_ps1\\n$ps1"
     fi
-
-    file=$dir/$BASH_RC
+    echo $file
     cat <<Bashrc > "$file"
 test -r ~/.bashrc && source ~/.bashrc
 alias ls="ls --color=auto -F"
