@@ -558,7 +558,7 @@ scan_devices() {
 
         case $FSTYPE in
                  ext[234]) ;;
-            brtfs|jfs|xfs) ;;
+            btrfs|jfs|xfs) ;;
                         *) continue ;;
         esac
 
