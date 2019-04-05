@@ -107,7 +107,7 @@ main() {
     local dir=$1 ; shift
     CHROOT_DIR=$dir
 
-    : ${ADD_PROMPT:=(\[$cyan\]$dir\[$nc_co\]) \[$green\]\\d \\t \[$magenta\]\\w\[$nc_co\]}
+    : ${ADD_PROMPT:=(\\[$cyan\\]$dir\\[$nc_co\\]) \\[$green\\]\\d \\t \\[$magenta\\]\\w\\[$nc_co\\]}
 
     [ "$(id -u)" -eq 0 ] || fatal "The %s program must be run as root" "$(wq $ME)"
 
