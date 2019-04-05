@@ -14,13 +14,13 @@ ME=${0##*/}
 TRY_CMDS="/bin/bash /bin/sh"
 TO_UMOUNT=
 TO_RMDIR=
-BASH_RC="bashrc"
-MY_MNT_PNT="/mnt/$ME"
 CHROOT_DIR=
 SET_WINDOW_TITLE=
-XAUTH_FILE="/run/Xauthority"
+
 MY_ENV="HOME=/root"
 
+BASH_RC="/run/$ME-bashrc"
+XAUTH_FILE="/run/$ME-Xauthority"
 LOCK_FILE="/run/$ME-lock"
 CNT_FNAME="/run/$ME-count"
 WAS_LOCKED=
