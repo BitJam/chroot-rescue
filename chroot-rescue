@@ -232,9 +232,10 @@ main() {
     local t1=$(get_time)
     cmd env $MY_ENV $set_arch chroot "$dir" "$cmd" $rc_args "$@"
     local ret=$?
-    local delta_t=$(($(get_time) - t1))
+    local delta_t=$(( $(get_time) - t1))
 
-    qsay "Elapsed time %s seconds" "$(pq $(awk "BEGIN {printf \"%.2f\", $delta_t / 1000}"))"
+    qsay "Elapsed time %s seconds" "$(pq $(awk "BEGIN {printf \"%.2f\", $delta_t / 100}"))"
+
     [ $ret -eq 1 -a $delta_t -lt 50 ] && fatal "Could not chroot to %s" "$(wq $dir)"
 
     # Clean up is done in clean_up(), trapping exit
