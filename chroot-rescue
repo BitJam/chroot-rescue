@@ -40,16 +40,17 @@ and run it in the chroot.  Otherwise we look for /bin/bash and then
 /bin/sh and run the first one that is found.
 
 Options:
-  -h --help            Show this help
-  -n --no-x            Don't allow Xwindows applications to launch
-     --pause           Pause before normal exit
-  -p --pretend         Don't actually execute commands
-  -P --prompt=<str>    Add this string to the prompt
-  -q --quiet           Only print error messages
-  -t --title=<str>     Set the window title while in the chroot
-  -u --umount          Umount all subdirectories of the given directory
-  -V --verbose         Show commands that get executed
-  -v --version         Show version and exit
+ -a  --add-prompt=<str>  Add <str> to top of prompt
+  -h --help              Show this help
+  -n --no-x              Don't allow Xwindows applications to launch
+     --pause             Pause before normal exit
+  -p --pretend           Don't actually execute commands
+  -P --prompt=<str>      Use this string as the prompt
+  -q --quiet             Only print error messages
+  -t --title=<str>       Set the window title while in the chroot
+  -u --umount            Umount all subdirectories of the given directory
+  -V --verbose           Show commands that get executed
+  -v --version           Show version and exit
 
 Usage
 
@@ -62,12 +63,14 @@ Usage
 eval_argument() {
     local arg=$1 val=$2
     case $arg in
+        -add-prompt|a) ADD_PROMPT=$val                 ;;
+        -add-prompt=*) ADD_PROMPT=$val                 ;;
               -help|h) usage                           ;;
               -no-x|n) DISPLAY=                        ;;
                -pause) PAUSE_EXIT=true                 ;;
            -pretend|p) PRETEND=true                    ;;
-            -prompt|P) ADD_PROMPT=$val                 ;;
-            -prompt=*) ADD_PROMPT=$val                 ;;
+            -prompt|P) NEW_PROMPT=$val                 ;;
+            -prompt=*) NEW_PROMPT=$val                 ;;
              -quiet|q) QUIET=true                      ;;
              -title|t) WINDOW_TITLE=$var               ;;
              -title=*) WINDOW_TITLE=$var               ;;
@@ -83,6 +86,7 @@ eval_argument() {
 #------------------------------------------------------------------------------
 takes_param() {
     case $1 in
+     -add-prompt|a) return 0 ;;
          -prompt|P) return 0 ;;
           -title|t) return 0 ;;
     esac
