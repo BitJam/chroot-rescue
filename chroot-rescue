@@ -212,8 +212,8 @@ main() {
 
     # add a bashrc file to change the prompt if we are running bash by default
     if [ $# -eq 0 -a "$cmd" = "/bin/bash" -a -z "$got_cmd" ]; then
-        create_bashrc "$dir" "$ADD_PROMPT"
-        rc_args="--rcfile /run/$BASH_RC"
+        create_bashrc "$dir" "$ADD_PROMPT" "$NEW_PROMPT"
+        rc_args="--rcfile $BASH_RC"
     fi
 
     local set_arch=linux32
