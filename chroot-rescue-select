@@ -38,13 +38,22 @@ export GTK2_RC_FILES=/usr/share/themes/Default/gtk-2.0-key/gtkrc
 YAD_STD_OPTS="--center --width=900 --height=600 --button=gtk-ok:0"
 
 usage() {
+    case $ME in
+        *-scan) scan_usage ;;
+             *) select_usage ;;
+    esac
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+select_usage() {
     local ret=${1:-0}
 
 cat<<Usage
 Usage: $ME [<options>]
 Look for all Linux systems under the top directory ($TOP_DIR).
-Provide a menu of all systems found and chroot into the selected
-one.
+Then provide a menu to chroot into any of the Liux systems.
 
 Options:
   -C  --color=<xxx>       Set color scheme to off|low|low2|bw|dark|high
@@ -52,8 +61,32 @@ Options:
                           Default: $TOP_DIR
   -h  --help              Show this usage
   -m  --menu              Output menu information then exit
-  -s  --scan              Scan all partitions for Linux systems
-  -S  --separator=<x>     Character to separate columns of data
+  -s  --separator=<x>     Character to separate columns of data
+                          Default: $K_IFS
+  -v  --version           Show the version number and date
+Usage
+    exit $ret
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+scan_usage() {
+    local ret=${1:-0}
+
+cat<<Usage
+Usage: $ME [<options>]
+SCAN ALL PARTITIONS for Linux systems.  Mount all that are found
+under the top directory ($TOP_DIR).  Then provide a menu to chroot
+into any Linux system system found under the top directory.
+
+Options:
+  -C  --color=<xxx>       Set color scheme to off|low|low2|bw|dark|high
+  -d  --dir=<directory>   Directory to look for linux systems under
+                          Default: $TOP_DIR
+  -h  --help              Show this usage
+  -m  --menu              Output menu information then exit
+  -s  --separator=<x>     Character to separate columns of data
                           Default: $K_IFS
   -v  --version           Show the version number and date
 Usage
@@ -80,8 +113,7 @@ eval_argument() {
              -color|C)  COLOR_SCHEME=$val                ;;
                -dir|d)  TOP_DIR=$val                     ;;
               -menu|m)  MENU_MODE=true                   ;;
-         -separator|S)  K_IFS=$val                       ;;
-              -scan|s)  DO_SCAN=true                     ;;
+         -separator|s)  K_IFS=$val                       ;;
          -separator=*)  K_IFS=$val                       ;;
              -color=*)  COLOR_SCHEME=$val                ;;
                     *)  fatal "Unknown parameter %s" "-$arg"  ;;
@@ -104,7 +136,8 @@ takes_param() {
 # The main routine.  Called from the very bottom of this script.
 #==============================================================================
 main() {
-    local SHIFT  SHORT_STACK="dCcghmv"
+    local SHIFT  SHORT_STACK="Cdhmsv"
+    unset DID_SCAN
 
     set_colors
 
@@ -122,9 +155,10 @@ main() {
 
     need_root
 
-    if [ "$DO_SCAN" ]; then
-        trap on_exit EXIT
-        scan_devices "$dir"
+    # If our name ends in -scan then scan all partitions
+    if [ -z "${ME%%*-scan}" ]; then
+        #trap on_exit EXIT
+        scan_devices
     fi
 
     K_IFS=$(printf "$K_IFS")
@@ -180,7 +214,7 @@ main() {
         #yad_combo_box_5 dir  "$title"  "$header_5" "$data"
 
         case $dir in
-            rescan) continue ;;
+            rescan) scan_devices ; continue ;;
               quit) break ;;
         esac
         local distro=$(distro_name "$dir" | tr -s "[:space:]" "_")
@@ -405,8 +439,7 @@ Print
 
     IFS=$orig_ifs
 
-    data="$data$(menu_printf 'rescan' "$(hq $"Rescan directory")")\n"
-    data="$data$(menu_printf 'quit'    "$(hq $"Quit")")\n"
+    data="$data$(end_of_menu)\n"
     my_select $var "$title" "$data"
 }
 
@@ -449,8 +482,7 @@ Print
 
     IFS=$orig_ifs
 
-    data="$data$(menu_printf 'rescan' "$(hq $"Rescan directory")")\n"
-    data="$data$(menu_printf 'quit'    "$(hq $"Quit")")\n"
+    data="$data$(end_of_menu)\n"
     my_select $var "$title" "$data"
 }
 
@@ -494,10 +526,22 @@ Print
 
     IFS=$orig_ifs
 
-    data="$data$(menu_printf 'rescan' "$(hq $"Rescan directory")")\n"
-    data="$data$(menu_printf 'quit'    "$(hq $"Quit")")\n"
+    data="$data$(end_of_menu)\n"
     my_select $var "$title" "$data"
 }
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+end_of_menu() {
+    if [ "$DID_SCAN" ]; then
+        menu_printf 'rescan' "$(hq $"Rescan all partitions")"
+    else
+        menu_printf 'rescan' "$(hq $"Scan all partitions")"
+    fi
+    menu_printf 'quit' "$(hq $"Quit")"
+}
+
 
 #------------------------------------------------------------------------------
 #
@@ -544,6 +588,9 @@ men_note() {
 # Mount all likely partitions (that are not already mounted?)
 #------------------------------------------------------------------------------
 scan_devices() {
+
+    trap on_exit EXIT
+
     local NAME TYPE FSTYPE LABEL MOUNTPOINT
     while read line; do
         [ ${#line} -gt 0 -a -z "${line##NAME=*}" ] || continue
@@ -576,6 +623,7 @@ scan_devices() {
 $(lsblk --noheading -I $MAJOR_DEV_LIST -o name,type,fstype,label,mountpoint --pairs)
 Scan_Devices
 
+    DID_SCAN=true
 }
 
 
