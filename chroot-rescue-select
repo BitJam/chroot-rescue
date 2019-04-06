@@ -550,9 +550,9 @@ Print
 #------------------------------------------------------------------------------
 end_of_menu() {
     if [ "$DID_SCAN" ]; then
-        menu_printf 'rescan' "$(hq $"Rescan all partitions")"
+        menu_printf 'rescan' "$(hq $"Rescan all partitions for Linux systems")"
     else
-        menu_printf 'rescan' "$(hq $"Scan all partitions")"
+        menu_printf 'rescan' "$(hq $"Scan all partitions for Linux systems")"
     fi
     menu_printf 'quit' "$(hq $"Quit")"
 }
