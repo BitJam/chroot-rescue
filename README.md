@@ -24,16 +24,17 @@ and run it in the chroot.  Otherwise we look for /bin/bash and then
 /bin/sh and run the first one that is found.
 
 Options:
-  -h --help            Show this help
-  -n --no-x            Don't allow Xwindows applications to launch
-     --pause           Pause before normal exit
-  -p --pretend         Don't actually execute commands
-  -P --prompt=<str>    Add this string to the prompt
-  -q --quiet           Only print error messages
-  -t --title=<str>     Set the window title while in the chroot
-  -u --umount          Umount all subdirectories of the given directory
-  -V --verbose         Show commands that get executed
-  -v --version         Show version and exit
+ -a  --add-prompt=<str>  Add <str> to top of prompt
+  -h --help              Show this help
+  -n --no-x              Don't allow Xwindows applications to launch
+     --pause             Pause before normal exit
+  -p --pretend           Don't actually execute commands
+  -P --prompt=<str>      Use this string as the prompt
+  -q --quiet             Only print error messages
+  -t --title=<str>       Set the window title while in the chroot
+  -u --umount            Umount all subdirectories of the given directory
+  -V --verbose           Show commands that get executed
+  -v --version           Show version and exit
 
 ```
 
@@ -49,8 +50,7 @@ under the directory (if they are not already mounted there).
 ```
 Usage: chroot-rescue-select [<options>]
 Look for all Linux systems under the top directory (/media).
-Provide a menu of all systems found and chroot into the selected
-one.
+Then provide a menu to chroot into any of the Liux systems.
 
 Options:
   -C  --color=<xxx>       Set color scheme to off|low|low2|bw|dark|high
@@ -58,8 +58,7 @@ Options:
                           Default: /media
   -h  --help              Show this usage
   -m  --menu              Output menu information then exit
-  -s  --scan              Scan all partitions for Linux systems
-  -S  --separator=<x>     Character to separate columns of data
+  -s  --separator=<x>     Character to separate columns of data
                           Default: \t
   -v  --version           Show the version number and date
 ```
