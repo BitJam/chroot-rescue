@@ -11,6 +11,8 @@ know and (ideally) show me how to correctly identify that system.
 
 ## chroot-rescue-scan
 
+![chroot-rescue-scan screenshot](/images/chroot-rescue-scan-02.png)
+
 ```
 Usage: chroot-rescue-scan [<options>]
 SCAN ALL PARTITIONS for Linux systems.  Mount all that are found
@@ -29,11 +31,6 @@ Options:
 ```
 
 ## chroot-rescue-select
-
-The chroot-rescue-select program will offer to chroot into any
-Linux file system mounted under a directory (default /media).
-The --scan option will cause it to mount all Linux filesystems
-under the directory (if they are not already mounted there).
 
 ![chroot-recue-select screenshot](/images/chroot-rescue-select-02.png)
 
