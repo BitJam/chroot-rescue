@@ -9,33 +9,23 @@ If it has a problem identifying a Linux distro, please let me
 know and (ideally) show me how to correctly identify that system.
 
 
-## chroot-rescue
-
-Chroot into a Linux file system to perform repairs or to poke
-around.
+## chroot-rescue-scan
 
 ```
-Usage: chroot-rescue [options] <directory>  [[--] <command> [<args>]]
-Bind Mount /sys /proc and /dev file and under <directory>.  Mount
-run/ as tmpfs and then chroot into that directory using a command.
-
-If <command> is given we try to find that command under the directory
-and run it in the chroot.  Otherwise we look for /bin/bash and then
-/bin/sh and run the first one that is found.
+Usage: chroot-rescue-scan [<options>]
+SCAN ALL PARTITIONS for Linux systems.  Mount all that are found
+under the top directory (/media).  Then provide a menu to chroot
+into any Linux system system found under the top directory.
 
 Options:
- -a  --add-prompt=<str>  Add <str> to top of prompt
-  -h --help              Show this help
-  -n --no-x              Don't allow Xwindows applications to launch
-     --pause             Pause before normal exit
-  -p --pretend           Don't actually execute commands
-  -P --prompt=<str>      Use this string as the prompt
-  -q --quiet             Only print error messages
-  -t --title=<str>       Set the window title while in the chroot
-  -u --umount            Umount all subdirectories of the given directory
-  -V --verbose           Show commands that get executed
-  -v --version           Show version and exit
-
+  -C  --color=<xxx>       Set color scheme to off|low|low2|bw|dark|high
+  -d  --dir=<directory>   Directory to look for linux systems under
+                          Default: /media
+  -h  --help              Show this usage
+  -m  --menu              Output menu information then exit
+  -s  --separator=<x>     Character to separate columns of data
+                          Default: \t
+  -v  --version           Show the version number and date
 ```
 
 ## chroot-rescue-select
@@ -61,6 +51,39 @@ Options:
   -s  --separator=<x>     Character to separate columns of data
                           Default: \t
   -v  --version           Show the version number and date
+```
+
+## chroot-rescue
+
+The chroot-rescue-select program will offer to chroot into any
+Linux file system mounted under a directory (default /media).
+The --scan option will cause it to mount all Linux filesystems
+under the directory (if they are not already mounted there).
+
+![chroot-recue-select screenshot](/images/chroot-rescue-select-02.png)
+
+```
+Usage: chroot-rescue [options] <directory>  [[--] <command> [<args>]]
+Bind Mount /sys /proc and /dev file and under <directory>.  Mount
+run/ as tmpfs and then chroot into that directory using a command.
+
+If <command> is given we try to find that command under the directory
+and run it in the chroot.  Otherwise we look for /bin/bash and then
+/bin/sh and run the first one that is found.
+
+Options:
+ -a  --add-prompt=<str>  Add <str> to top of prompt
+  -h --help              Show this help
+  -n --no-x              Don't allow Xwindows applications to launch
+     --pause             Pause before normal exit
+  -p --pretend           Don't actually execute commands
+  -P --prompt=<str>      Use this string as the prompt
+  -q --quiet             Only print error messages
+  -t --title=<str>       Set the window title while in the chroot
+  -u --umount            Umount all subdirectories of the given directory
+  -V --verbose           Show commands that get executed
+  -v --version           Show version and exit
+
 ```
 
 ## unpack-initrd
