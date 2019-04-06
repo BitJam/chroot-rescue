@@ -367,6 +367,11 @@ distro_name() {
 
         distro=$(get_value PRETTY_NAME "$file")
         [ -n "$distro" ] && break
+
+        distro=$(get_value DISTRIB_RELEASE "$file")
+        [ -z "$distro" ] && continue
+        distro="$distro $(get_value DISTRIB_CODENAME "$file")"
+        break
     done
     echo -n ${distro:-$DEFAULT_DISTRO_NAME}
 }
