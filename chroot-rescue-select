@@ -359,10 +359,20 @@ is_linux() {
 #------------------------------------------------------------------------------
 distro_name() {
     local dir=$1  distro
-    local fname distro
-    for fname in lsb-release  os-release; do
-        local file="$dir/etc/$fname"
+    local fname distro file
+    for fname in antix-version mx-version; do
+        file="$dir/etc/$fname"
+        test -e "$file" || continue
+        distro=$(head -n1 "$file" 2>/dev/null)
+        [ -z "$distro" ] && continue
+        echo -n "$distro"  | sed -r \
+            -e "s/\s+[0-9][0-9]?\s[A-Z][a-z]*\s+[0-9]+$//" \
+            -e "s/\s+[A-Z][a-z][a-z]\s+[0-9]+,\s+[0-9]+$//"
+        return
+    done
 
+    for fname in lsb-release  os-release; do
+        file="$dir/etc/$fname"
         test -e "$file" || continue
 
         distro=$(get_value PRETTY_NAME "$file")
