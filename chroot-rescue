@@ -257,7 +257,7 @@ create_bashrc() {
     [ "$fs_type" = 'tmpfs' ] || return 1
 
     if [ -z "$ps1" ]; then
-        ps1="\[${lt_blue}\[chroot\[${lt_green}\]>\[$nc_co\] "
+        ps1="\[${lt_blue}\]chroot\[${lt_green}\]>\[$nc_co\] "
         [ -n "$add_ps1" ] && ps1="\\n$add_ps1\\n$ps1"
     fi
     cat <<Bashrc > "$file"
