@@ -225,7 +225,7 @@ main() {
     set_window_title "$WINDOW_TITLE"
 
     qsay "Chrooting to %s with command %s" "$(pq $dir)" "$(pq $cmd $*)"
-    qsay "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl><d>")"
+    qsay "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl>-d")"
 
     # Time how long we are in the chroot to distinguish Between chroot failing and the
     # last command run in the chroot failing.
