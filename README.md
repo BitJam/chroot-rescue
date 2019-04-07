@@ -32,7 +32,8 @@ Options:
 
 ## chroot-rescue-select
 
-![chroot-recue-select screenshot](/images/chroot-rescue-select-02.png)
+![chroot-recue-select screenshot](/images/chroot-rescue-select-06.png)
+![chroot-recue-select screenshot](/images/chroot-rescue-select-08.png)
 
 ```
 Usage: chroot-rescue-select [<options>]
