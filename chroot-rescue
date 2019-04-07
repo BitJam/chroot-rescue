@@ -436,12 +436,12 @@ Rmdir
 }
 
 #------------------------------------------------------------------------------
-# List all processes using files *under* the given directory (note the dot)
+# List all processes using files in directories *under* the given directory
 #------------------------------------------------------------------------------
 dir_procs() {
     local dir=$1
     test -d "$dir" || return
-    echo $(lsof "$dir"  | grep "$dir/[^/]\+/" | awk '{print $2}' | sort -u | grep "^[0-9]")
+    echo $(lsof "$dir" 2>/dev/null | grep "$dir/[^/]\+/" | awk '{print $2}' | sort -u | grep "^[0-9]")
 }
 
 #------------------------------------------------------------------------------
