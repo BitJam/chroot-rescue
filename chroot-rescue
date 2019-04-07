@@ -367,7 +367,7 @@ stop_lock() {
 # Mount the boot directory in the target system
 #------------------------------------------------------------------------------
 mount_boot_dir() {
-    local dir="$1"  bdir="$1/boot"
+    local dir=$1  bdir="$1/boot"
     test -d "$bdir"       || return 2
     is_mountpoint "$bdir" && return 2
 
