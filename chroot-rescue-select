@@ -155,12 +155,6 @@ main() {
 
     need_root
 
-    # If our name ends in -scan then scan all partitions
-    if [ -z "${ME%%*-scan}" ]; then
-        #trap on_exit EXIT
-        scan_devices
-    fi
-
     K_IFS=$(printf "$K_IFS")
 
     local chroot_cmd=$(find_my_cmd "$CHROOT_CMD")
@@ -168,6 +162,17 @@ main() {
 
     test -e "$TOP_DIR" || ui_fatal "Top directory %s not found" "$TOP_DIR"
     test -d "$TOP_DIR" || ui_fatal "Top directory %s is not a directory" "$TOP_DIR"
+
+    trap on_exit EXIT
+
+    shout_title $"Starting %s" "$ME"
+    set_window_title "$ME"
+
+    # If our name ends in -scan then scan all partitions
+    if [ -z "${ME%%*-scan}" ]; then
+        #trap on_exit EXIT
+        scan_devices
+    fi
 
     TOP_DIR=${TOP_DIR%/}/
 
@@ -197,10 +202,9 @@ main() {
     local sudo=sudo
     [ $UID -eq 0 ] && sudo=
 
-    shout_title $"Starting %s" "$ME"
-    set_window_title "$ME"
-
     while true; do
+        msg "Scanning directories ..."
+
         local data=$(main_data_5 "$TOP_DIR")
         #echo -e "$data" ; return
 
@@ -224,12 +228,14 @@ main() {
         echo
         msg "Chrooting into distro %s" "$(pq "$distro")"
         msg "Directory: %s  Device: %s"  "$(pq "$dir")" "$(pq $(fs_dev "$dir"))"
-        msg  "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl><d>")"
+        msg  "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl>-d")"
 
         local prompt="(\[$cyan\]$distro\[$nc_co\]) \[$green\]\d \t \[$magenta\]\w\[$nc_co\]"
         echo "$BAR_80"
         $sudo $chroot_cmd --quiet --add-prompt "$prompt" "$dir"
         echo "$BAR_80"
+
+        set_window_title "$ME"
     done
 
     exit_done
@@ -604,7 +610,7 @@ men_note() {
 #------------------------------------------------------------------------------
 scan_devices() {
 
-    trap on_exit EXIT
+    msg "Scanning partitions ..."
 
     local NAME TYPE FSTYPE LABEL MOUNTPOINT
     while read line; do
@@ -646,6 +652,8 @@ Scan_Devices
 # Unmount the things we mounted and remove the directories we created
 #------------------------------------------------------------------------------
 on_exit()  {
+    clear_window_title
+
     local targ
     while read targ; do
         #echo "targ: $targ"
@@ -660,7 +668,6 @@ Umount
         cmd rmdir "$targ"
     done<<Rmdir
 $(echo -e "$TO_RMDIR")
-
 Rmdir
 }
 
