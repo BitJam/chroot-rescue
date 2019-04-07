@@ -309,7 +309,8 @@ Get_Dirs
 }
 
 #------------------------------------------------------------------------------
-#
+# Sorted chronologically:
+# dir (payload)  distro  date  dir  device  arch
 #------------------------------------------------------------------------------
 main_data_5() {
     local top_dir=$1  dir
@@ -318,9 +319,9 @@ main_data_5() {
         is_mountpoint "$dir" || continue
         is_linux "$dir"      || continue
         #echo "$dir$K_IFS$(linux_entry "$dir")$K_IFS$(human_size "$dir")"
-        echo "$dir$K_IFS$(linux_entry "$dir")$K_IFS$(get_arch "$dir")"
+        echo "$(fs_date "$dir"):$dir$K_IFS$(linux_entry "$dir")$K_IFS$(get_arch "$dir")"
         #echo "$dir$K_IFS$(linux_entry "$dir")"
-    done <<Get_Dirs
+    done <<Get_Dirs | sort -r | sed "s/^[^:]\+://"
 $(find "$top_dir" -mindepth 1 -maxdepth 2 -type d)
 Get_Dirs
 }
