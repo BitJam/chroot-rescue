@@ -11,9 +11,9 @@ know and (ideally) show me how to correctly identify that system.
 
 ## chroot-rescue-scan
 
-![chroot-recue-select screenshot](/images/chroot-rescue-scan-06.png)
+![chroot-recue-scan screenshot 1](/images/chroot-rescue-scan-06.png)
 
-![chroot-recue-select screenshot](/images/chroot-rescue-scan-08.png)
+![chroot-recue-scan screenshot 2](/images/chroot-rescue-scan-08.png)
 
 ```
 Usage: chroot-rescue-scan [<options>]
