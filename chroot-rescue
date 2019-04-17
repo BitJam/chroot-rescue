@@ -17,6 +17,8 @@ TO_RMDIR=
 CHROOT_DIR=
 SET_WINDOW_TITLE=
 
+SUB_DIRS="sys proc dev run tmp"
+
 MY_ENV="HOME=/root"
 
 BASH_RC="/run/$ME-bashrc"
@@ -173,40 +175,39 @@ main() {
         #--- make directories ---------------------------------------------------
 
         local s subdir
-        for s in sys proc dev run tmp; do
+        for s in $SUB_DIRS; do
             subdir="$dir/$s"
             test -d "$subdir" && continue
-            TO_RMDIR="$subdir\n$TO_RMDIR"
-            cmd mkdir "$subdir" || warn_fatal "Could not make directory %s" "$(wq $subdir)"
+            cmd mkdir "$subdir" || warn_fatal $"Could not make directory %s" "$(wq $subdir)"
+            test -d "$subdir" && TO_RMDIR="$subdir\n$TO_RMDIR"
         done
 
         #--- mount things --------------------------------------------------------
         local targ
-        for s in sys proc dev run tmp; do
+        for s in $SUB_DIRS; do
             targ="$dir/$s"
             is_mountpoint "$targ" && continue
             test -d "$targ"       || continue
-            TO_UMOUNT="$targ\n$TO_UMOUNT"
 
             case $s in
                 run) cmd mount -t tmpfs -o size=10m,nodev,mode=755 tmpfs "$targ" ;;
                 tmp) cmd mount -t tmpfs -o size=10m,nodev,mode=755 tmpfs "$targ" ;;
+            sys|dev) cmd mount --rbind --make-rslave /$s "$targ"                 ;;
                   *) cmd mount --rbind /$s "$targ" ;;
             esac
-
-            case $s in
-                sys|dev) cmd mount --make-rslave "$targ" ;;
-            esac
+            is_mountpoint "$targ" && TO_UMOUNT="$targ\n$TO_UMOUNT"
         done
 
+        # we are the first ones in so set the count to one
         set_count_file "$CNT_FILE"
 
+        # mount /boot if it is in /etc/fstab (with UUID)
         mount_boot_dir "$dir"
 
         # Copy the XAUTHORITY file into the the chroot
         if [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/run" ]; then
             cp "$XAUTHORITY" "$dir/$XAUTH_FILE"
-            MY_ENV="$my_env XAUTHORITY=$XAUTH_FILE"
+            MY_ENV="$MY_ENV XAUTHORITY=$XAUTH_FILE"
         fi
     fi
 
