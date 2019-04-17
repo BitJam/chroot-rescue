@@ -116,7 +116,7 @@ eval_argument() {
          -separator|s)  K_IFS=$val                       ;;
          -separator=*)  K_IFS=$val                       ;;
              -color=*)  COLOR_SCHEME=$val                ;;
-                    *)  fatal "Unknown parameter %s" "-$arg"  ;;
+                    *)  fatal $"Unknown parameter %s" "-$arg"  ;;
     esac
 }
 
@@ -151,7 +151,7 @@ main() {
     set_colors $COLOR_SCHEME
 
     shift $SHIFT
-    fatal_n0 $# "Extra command line arguments: %s" "$*"
+    fatal_n0 $# $"Extra command line parameters: %s" "$*"
 
     need_root
 
@@ -160,8 +160,8 @@ main() {
     local chroot_cmd=$(find_my_cmd "$CHROOT_CMD")
     #trap clean_up EXIT
 
-    test -e "$TOP_DIR" || ui_fatal "Top directory %s not found" "$TOP_DIR"
-    test -d "$TOP_DIR" || ui_fatal "Top directory %s is not a directory" "$TOP_DIR"
+    test -e "$TOP_DIR" || ui_fatal $"Top directory %s not found" "$TOP_DIR"
+    test -d "$TOP_DIR" || ui_fatal $"Top directory %s is not a directory" "$TOP_DIR"
 
     trap on_exit EXIT
 
@@ -190,8 +190,8 @@ main() {
 
         local line_cnt=$(count_lines "$data")
         case $line_cnt in
-            0) ui_fatal "No Linux systems were found under %s" "$TOP_DIR" ;;
-            1) ui_note  "Only one Linux system was found"
+            0) ui_fatal $"No Linux systems were found under %s" "$TOP_DIR" ;;
+            1) ui_note  $"Only one Linux system was found"
         esac
 
         ui_combo_box 5 "$title"  "$header_5" "$data"  $line_cnt
@@ -203,14 +203,14 @@ main() {
     [ $UID -eq 0 ] && sudo=
 
     while true; do
-        msg "Scanning directories ..."
+        msg $"Scanning directories ..."
 
         local data=$(main_data_5 "$TOP_DIR")
         #echo -e "$data" ; return
 
         case $(count_lines "$data") in
-            0) fatal "No Linux systems were found under %s" "$TOP_DIR" ;;
-            1) Msg "Only one Linux system was found"
+            0) fatal $"No Linux systems were found under %s" "$TOP_DIR" ;;
+            1) Msg $"Only one Linux system was found"
         esac
 
         local dir
@@ -223,12 +223,14 @@ main() {
         esac
         local distro=$(distro_name "$dir" | tr -s "[:space:]" "_")
 
-        test -d "$dir" || fatal "Strange, %s is not a directory" "$dir"
+        test -d "$dir" || fatal $"Strange, %s is not a directory" "$dir"
 
         echo
-        msg "Chrooting into distro %s" "$(pq "$distro")"
-        msg "Directory: %s  Device: %s"  "$(pq "$dir")" "$(pq $(fs_dev "$dir"))"
-        msg  "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl>-d")"
+        # "chroot" is the name of a command
+        msg $"Chrooting into distro %s" "$(pq "$distro")"
+        msg $"Directory: %s  Device: %s"  "$(pq "$dir")" "$(pq $(fs_dev "$dir"))"
+        # "chroot" is the name of a command
+        msg  $"Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl>-d")"
 
         local prompt="(\[$cyan\]$distro\[$nc_co\]) \[$green\]\d \t \[$magenta\]\w\[$nc_co\]"
         echo "$BAR_80"
@@ -246,7 +248,7 @@ main() {
 #------------------------------------------------------------------------------
 find_my_cmd() {
     local cmd=$1
-    _find_my_cmd $cmd || ui_fatal "Could not find command %s" "$cmd"
+    _find_my_cmd $cmd || ui_fatal $"Could not find command %s" "$cmd"
 }
 
 _find_my_cmd() {
@@ -611,7 +613,7 @@ men_note() {
 #------------------------------------------------------------------------------
 scan_devices() {
 
-    msg "Scanning partitions ..."
+    msg $"Scanning partitions ..."
 
     local NAME TYPE FSTYPE LABEL MOUNTPOINT
     while read line; do
@@ -797,16 +799,16 @@ load_lib() {
         lib=$dir/$file
         test -r $lib || continue
         if ! . $lib; then
-            printf "Error when loading library %s\n" "$lib" >&2
-            printf "This is a fatal error\n" >&2
+            printf $"Error when loading library %s\n" "$lib" >&2
+            printf $"This is a fatal error\n" >&2
             exit 15
         fi
         FOUND_LIB=$lib
         return 0
     done
 
-    printf "Could not find library '%s' on path '%s'\n" "$file" "$path" >&2
-    printf "This is a fatal error\n" >&2
+    printf $"Could not find library '%s' on path '%s'\n" "$file" "$path" >&2
+    printf $"This is a fatal error\n" >&2
     exit 17
 }
 
