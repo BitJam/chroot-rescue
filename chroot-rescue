@@ -84,7 +84,7 @@ eval_argument() {
             -umount|u) UMOUNT_ALL=true                 ;;
            -verbose|V) VERBOSE=true                    ;;
            -version|v) show_version ; exit 0           ;;
-                    *) fatal "Unknown parameter -$arg" ;;
+                    *) fatal $"Unknown parameter -$arg" ;;
     esac
 }
 
@@ -110,13 +110,13 @@ main() {
     read_params "$@"
     shift $SHIFT
 
-    [ $# -eq 0 ] && fatal "Expected a directory or device name"
+    [ $# -eq 0 ] && fatal $"Expected a directory or device name"
     local dir=$1 ; shift
     CHROOT_DIR=$dir
 
     : ${ADD_PROMPT:=(\\[$cyan\\]$dir\\[$nc_co\\]) \\[$green\\]\\d \\t \\[$magenta\\]\\w\\[$nc_co\\]}
 
-    [ "$(id -u)" -eq 0 ] || fatal "The %s program must be run as root" "$(wq $ME)"
+    [ "$(id -u)" -eq 0 ] || fatal $"The %s program must be run as root" "$(wq $ME)"
 
     local cmd
     if [ $# -gt 0 ]; then
@@ -137,7 +137,7 @@ main() {
         dir=$MY_MNT_PNT
     fi
 
-    test -d "$dir" || fatal "%s is not a directory" "$(wq $dir)"
+    test -d "$dir" || fatal $"%s is not a directory" "$(wq $dir)"
 
     #--- Figure out which cmd to use -----------------------------------------
     # We will search the PATH if needed if a command is given on cmdline
@@ -153,7 +153,8 @@ main() {
                 found=true
                 break
             done
-            [ -z "$found" ] && fatal "Could not find command %s under %s" "$(wq $cmd)" "$(wq $dir)"
+            # Could not find command <name> under <directory>
+            [ -z "$found" ] && fatal $"Could not find command %s under %s" "$(wq $cmd)" "$(wq $dir)"
         fi
     else
         local try_cmd
@@ -162,14 +163,14 @@ main() {
             cmd=$try_cmd
             break
         done
-        [ -z "$cmd" ] && fatal "Could not find commands: %s" "$(wq $TRY_CMDS)"
+        [ -z "$cmd" ] && fatal $"Could not find commands: %s" "$(wq $TRY_CMDS)"
 
     fi
 
     # Slightly redundant
     local full_cmd="$dir/$cmd"
-    test -e "$full_cmd"  || fatal "Could not find command: %s" "$(wq $full_cmd)"
-    test -x "$full_cmd"  || fatal "%s is not an executable"    "$(wq $full_cmd)"
+    test -e "$full_cmd"  || fatal $"Could not find command: %s" "$(wq $full_cmd)"
+    test -x "$full_cmd"  || fatal $"%s is not an executable"    "$(wq $full_cmd)"
 
 
     CNT_FILE="$dir/$CNT_FNAME"
@@ -227,11 +228,15 @@ main() {
 
     # --- do the chroot --------------------------------------------------------
 
-    [ -z "$WINDOW_TITLE" ] && WINDOW_TITLE=$(printf "Chroot into %s" "$dir")
+    # "chroot" is the name of a command
+    [ -z "$WINDOW_TITLE" ] && WINDOW_TITLE=$(printf $"Chroot into %s" "$dir")
     set_window_title "$WINDOW_TITLE"
 
-    qsay "Chrooting to %s with command %s" "$(pq $dir)" "$(pq $cmd $*)"
-    qsay "Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl>-d")"
+    # "chroot" is the name of a command
+    qsay $"Chrooting to %s with command %s" "$(pq $dir)" "$(pq $cmd $*)"
+
+    # "chroot" is the name of a command
+    qsay $"Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl>-d")"
 
     # Time how long we are in the chroot to distinguish Between chroot failing and the
     # last command run in the chroot failing.
@@ -242,7 +247,8 @@ main() {
 
     # qsay "Elapsed time %s seconds" "$(pq $(awk "BEGIN {printf \"%.2f\", $delta_t / 100}"))"
 
-    [ $ret -eq 1 -a $delta_t -lt 50 ] && fatal "Could not chroot to %s" "$(wq $dir)"
+    # "chroot" is the name of a command
+    [ $ret -eq 1 -a $delta_t -lt 50 ] && fatal $"Could not chroot to %s" "$(wq $dir)"
 
     # Clean up is done in clean_up(), trapping exit
 
@@ -281,14 +287,14 @@ Bashrc
 #------------------------------------------------------------------------------
 try_mount() {
     local dev=$1  dir=$2
-    is_mountpoint "$dir" && fatal "Directory %s is already a mountpoint" "$dir"
+    is_mountpoint "$dir" && fatal $"Directory %s is already a mountpoint" "$dir"
     if ! test -d "$dir"; then
         TO_RMDIR="$dir\n$TO_RMDIR"
         mkdir -p "$dir"
     fi
-    test -d "$dir" || fatal "Could not create directory %s" "$dir"
+    test -d "$dir" || fatal $"Could not create directory %s" "$dir"
     mount "$dev" "$dir"
-    is_mountpoint "$dir" || fatal "Unable to mount %s at %s" "$dev" "$dir"
+    is_mountpoint "$dir" || fatal $"Unable to mount %s at %s" "$dev" "$dir"
     TO_UMOUNT="$dir\n$TO_UMOUNT"
 }
 
@@ -401,7 +407,7 @@ clean_up()  {
     local procs=$(dir_procs "$CHROOT_DIR")
     if [ -n "$procs" ]; then
         if [ -z "$QUIET" ]; then
-            echo "Killing these processes:"
+            echo $"Killing these processes:"
             ps u $procs
         fi
         cmd kill $procs
@@ -468,8 +474,8 @@ Umount_All
 
     case $cnt in
         0) return 0 ;;
-        1) fatal "One directory is still mounted: %s" "$failed" ;;
-        *) fatal "These directories are still mounted: %s" "$failed" ;;
+        1) fatal $"One directory is still mounted: %s" "$failed" ;;
+        *) fatal $"These directories are still mounted: %s" "$failed" ;;
     esac
 }
 
@@ -593,10 +599,10 @@ read_params() {
 
         # Deal with all options that take a parameter
         if takes_param "$arg"; then
-            [ $# -lt 1 ] && fatal "Expected a parameter after: -$arg"
+            [ $# -lt 1 ] && fatal $"Expected a parameter after: -$arg"
             val=$1
             [ -n "$val" -a -z "${val##-*}" ] \
-                && fatal "Suspicious argument after -$arg: $val"
+                && fatal $"Suspicious argument after -$arg: $val"
             SHIFT=$((SHIFT + 1))
             shift
         else
@@ -631,7 +637,7 @@ clear_window_title() {
 #------------------------------------------------------------------------------
 pause_exit() {
     [ "$PAUSE_EXIT" ] || return 0
-    say "Please press %s to exit" "$(pq "<Enter>")"
+    say $"Please press %s to exit" "$(pq "<Enter>")"
     local ans
     read ans
 }
