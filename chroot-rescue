@@ -28,21 +28,26 @@ CNT_FNAME="/run/$ME-count"
 WAS_LOCKED=
 CNT_FILE=
 
+export TEXTDOMAIN="$ME"
+
 #------------------------------------------------------------------------------
 # Show usage message and exit
 #------------------------------------------------------------------------------
 usage() {
     cat<<Usage
 Usage: $ME [options] <directory>  [[--] <command> [<args>]]
-Bind Mount /sys /proc and /dev file and under <directory>.  Mount
-run/ as tmpfs and then chroot into that directory using a command.
+Bind mount sys/, proc/, dev/, etc file systems and under <directory>.
+Mount run/ and tmp/ as tmpfs and then chroot into that directory using
+a given command or /bin/bash or /bin/sh as defaults.
 
 If <command> is given we try to find that command under the directory
 and run it in the chroot.  Otherwise we look for /bin/bash and then
-/bin/sh and run the first one that is found.
+/bin/sh and run the first one that is found.  If we find /bin/bash
+this way then we create a bashrc script that gets run in order to
+set the Bash prompt.
 
 Options:
- -a  --add-prompt=<str>  Add <str> to top of prompt
+  -a  --add-prompt=<str> Add <str> to top of the Bash prompt
   -h --help              Show this help
   -n --no-x              Don't allow Xwindows applications to launch
      --pause             Pause before normal exit
