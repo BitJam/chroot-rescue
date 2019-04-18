@@ -403,7 +403,7 @@ write_file() { cat > "$1" ; }
 append_file() {  cat >> "$1" ; }
 
 #------------------------------------------------------------------------------
-# Error out of $prog is not on the PATH
+# Error out if $prog is not on the PATH
 #------------------------------------------------------------------------------
 need_prog() {
     local prog=$1
