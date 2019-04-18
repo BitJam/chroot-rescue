@@ -211,11 +211,8 @@ main() {
         # mount /boot if it is in /etc/fstab (with UUID)
         mount_boot_dir "$dir"
 
-        # Copy the XAUTHORITY file into the the chroot
-        if [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/run" ]; then
-            cp "$XAUTHORITY" "$dir/$XAUTH_FILE"
-            MY_ENV="$MY_ENV XAUTHORITY=$XAUTH_FILE"
-        fi
+        # Copy the XAUTHORITY file into the chroot
+        copy_in_xauthority "$dir" && MY_ENV="$MY_ENV XAUTHORITY=$XAUTH_FILE"
     fi
 
     # add a bashrc file to change the prompt if we are running bash by default
@@ -375,6 +372,28 @@ stop_lock() {
     return $?
 }
 
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+copy_in_xauthority() {
+    local dir=$1
+    [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/run" ] || return 1
+    [ "$(fs_type "$dir/run")" = tmpfs ] || return 1
+
+    local xauth_file=$(readlink -f "$XAUTHORITY")
+    test -f "$xauth_file" || return 1
+    cp "$xauth_file" "$dir/$XAUTH_FILE"
+    return $?
+}
+
+#------------------------------------------------------------------------------
+# Return file system type of a directory
+#------------------------------------------------------------------------------
+fs_type() {
+    dir=$1
+    test -d "$dir" || return
+    df -T "$dir" | tail -n1 | awk '{print $2}'
+}
 
 #------------------------------------------------------------------------------
 # Mount the boot directory in the target system
