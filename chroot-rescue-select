@@ -28,7 +28,8 @@ MAJOR_DEV_LIST="3,8,22,179,202,254,259"
 TO_RMDIR=
 TO_UMOUNT=
 
-export TEXTDOMAIN="$ME"
+export TEXTDOMAIN="chroot-rescue-select"
+
 domain_dir="$MY_DIR/../cli-shell-utils/locale"
 test -d "$domain_dir" && export TEXTDOMAINDIR=$domain_dir
 
