@@ -152,14 +152,13 @@ main() {
     set_colors $COLOR_SCHEME
 
     shift $SHIFT
-    fatal_n0 $# $"Extra command line parameters: %s" "$*"
+    fatal_n0 $# $"Extra command line parameters %s" "$*"
 
     need_root
 
     K_IFS=$(printf "$K_IFS")
 
     local chroot_cmd=$(find_my_cmd "$CHROOT_CMD")
-    #trap clean_up EXIT
 
     test -e "$TOP_DIR" || ui_fatal $"Top directory %s not found" "$TOP_DIR"
     test -d "$TOP_DIR" || ui_fatal $"Top directory %s is not a directory" "$TOP_DIR"
@@ -177,7 +176,10 @@ main() {
 
     TOP_DIR=${TOP_DIR%/}/
 
+    # Please try to keep these names short: Distro Date Dir Device
     local Distro=$"Distro"  Date=$"Date"  Dir=$"Dir"  Device=$"Device"
+    # Please try to keep these names short: Size  Arch
+    # "Arch" means 32-bit or 64-bit architecture
     local Size=$"Size"  Arch=$"Arch"
 
     local title=$"Please select a Linux System to visit"
@@ -800,16 +802,16 @@ load_lib() {
         lib=$dir/$file
         test -r $lib || continue
         if ! . $lib; then
-            printf $"Error when loading library %s\n" "$lib" >&2
-            printf $"This is a fatal error\n" >&2
+            printf "Error when loading library %s\n" "$lib" >&2
+            printf "This is a fatal error\n" >&2
             exit 15
         fi
         FOUND_LIB=$lib
         return 0
     done
 
-    printf $"Could not find library '%s' on path '%s'\n" "$file" "$path" >&2
-    printf $"This is a fatal error\n" >&2
+    printf "Could not find library '%s' on path '%s'\n" "$file" "$path" >&2
+    printf "This is a fatal error\n" >&2
     exit 17
 }
 
