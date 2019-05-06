@@ -84,7 +84,7 @@ eval_argument() {
             -umount|u) UMOUNT_ALL=true                 ;;
            -verbose|V) VERBOSE=true                    ;;
            -version|v) show_version ; exit 0           ;;
-                    *) fatal $"Unknown parameter -$arg" ;;
+                    *) fatal $"Unknown parameter %s" "-$arg" ;;
     esac
 }
 
@@ -164,13 +164,13 @@ main() {
             cmd=$try_cmd
             break
         done
-        [ -z "$cmd" ] && fatal $"Could not find commands: %s" "$(wq $TRY_CMDS)"
+        [ -z "$cmd" ] && fatal $"Could not find commands %s" "$(wq $TRY_CMDS)"
 
     fi
 
     # Slightly redundant
     local full_cmd="$dir/$cmd"
-    test -e "$full_cmd"  || fatal $"Could not find command: %s" "$(wq $full_cmd)"
+    test -e "$full_cmd"  || fatal $"Could not find command %s" "$(wq $full_cmd)"
     test -x "$full_cmd"  || fatal $"%s is not an executable"    "$(wq $full_cmd)"
 
 
@@ -226,6 +226,8 @@ main() {
 
     # --- do the chroot --------------------------------------------------------
 
+    :
+
     # "chroot" is the name of a command
     [ -z "$WINDOW_TITLE" ] && WINDOW_TITLE=$(printf $"Chroot into %s" "$dir")
     set_window_title "$WINDOW_TITLE"
@@ -242,8 +244,6 @@ main() {
     cmd env $MY_ENV $set_arch chroot "$dir" "$cmd" $rc_args "$@"
     local ret=$?
     local delta_t=$(( $(get_time) - t1))
-
-    # qsay "Elapsed time %s seconds" "$(pq $(awk "BEGIN {printf \"%.2f\", $delta_t / 100}"))"
 
     # "chroot" is the name of a command
     [ $ret -eq 1 -a $delta_t -lt 50 ] && fatal $"Could not chroot to %s" "$(wq $dir)"
@@ -427,7 +427,7 @@ clean_up()  {
     local procs=$(dir_procs "$CHROOT_DIR")
     if [ -n "$procs" ]; then
         if [ -z "$QUIET" ]; then
-            echo $"Killing these processes:"
+            echo $"Killing these processes"
             ps u $procs
         fi
         cmd kill $procs
@@ -494,8 +494,8 @@ Umount_All
 
     case $cnt in
         0) return 0 ;;
-        1) fatal $"One directory is still mounted: %s" "$failed" ;;
-        *) fatal $"These directories are still mounted: %s" "$failed" ;;
+        1) fatal $"One directory is still mounted %s" "$failed" ;;
+        *) fatal $"These directories are still mounted %s" "$failed" ;;
     esac
 }
 
@@ -619,10 +619,10 @@ read_params() {
 
         # Deal with all options that take a parameter
         if takes_param "$arg"; then
-            [ $# -lt 1 ] && fatal $"Expected a parameter after: -$arg"
+            [ $# -lt 1 ] && fatal $"Expected a parameter after %s" "-$arg"
             val=$1
             [ -n "$val" -a -z "${val##-*}" ] \
-                && fatal $"Suspicious argument after -$arg: $val"
+                && fatal $"Suspicious argument after %s" "-$arg: $val"
             SHIFT=$((SHIFT + 1))
             shift
         else
