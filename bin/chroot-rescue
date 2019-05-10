@@ -198,7 +198,7 @@ main() {
 
             case $s in
                 run) cmd mount -t tmpfs -o size=10m,nodev,mode=755 tmpfs "$targ" ;;
-                tmp) cmd mount -t tmpfs -o size=10m,nodev,mode=755 tmpfs "$targ" ;;
+                tmp) cmd mount -t tmpfs -o size=20%,nodev,mode=777 tmpfs "$targ" ;;
             sys|dev) cmd mount --rbind --make-rslave /$s "$targ"                 ;;
                   *) cmd mount --rbind /$s "$targ" ;;
             esac
