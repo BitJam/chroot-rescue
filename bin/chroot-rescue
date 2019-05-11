@@ -462,18 +462,23 @@ add_resolvconf() {
             [ -n "$dest" -a -z "${dest##../*}" ] || break
             dest=${dest#../}
             [ $cnt -lt 10 ] && continue
-            fatal "error while making resolv.conf symlink absolute"
+            fatal "error while making %s symlink absolute" "$(wq resolv.conf)"
         done
+
         dest="/${dest#/}"
         vsay "resolv.conf points to %s" "$(pq $dest)"
         local dest_dir="$dir$(dirname "$dest")"
 
-        if test -L "$dest_dir"; then
+        for cnt in $(seq 1 10); do
+            test -L "$dest_dir" || break
             dest=$(readlink $dest_dir)/$(basename $dest)
-            dest_dir="$dir$(dirname "$dest")"
-        fi
+            vsay "resolv.conf points to %s" "$(pq $dest)"
 
-        vsay "resolv.conf points to %s" "$(pq $dest)"
+            dest_dir="$dir$(dirname "$dest")"
+            [ $cnt -lt 10 ] && continue
+            fatal "error while following %s symlinks" "$(wq resolv.conf)"
+        done
+
         case $dest in
             /run/*)
                 cmd mkdir -p $dest_dir
