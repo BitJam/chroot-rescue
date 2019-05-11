@@ -151,6 +151,10 @@ main() {
         dir=$MY_MNT_PNT
     fi
 
+    # We need this in add_resolvconf() as well as the main event
+    SET_ARCH=linux32
+    test -d "$dir/lib64" && SET_ARCH=linux64
+
     test -d "$dir" || fatal $"%s is not a directory" "$(wq $dir)"
 
     #--- Figure out which cmd to use -----------------------------------------
@@ -236,9 +240,6 @@ main() {
         rc_args="--rcfile $BASH_RC"
     fi
 
-    local set_arch=linux32
-    test -d "$dir/lib64" && set_arch=linux64
-
     # --- do the chroot --------------------------------------------------------
 
     :
@@ -256,7 +257,7 @@ main() {
     # Time how long we are in the chroot to distinguish Between chroot failing and the
     # last command run in the chroot failing.
     local t1=$(get_time)
-    cmd env $MY_ENV $set_arch chroot "$dir" "$cmd" $rc_args "$@"
+    cmd env $MY_ENV $SET_ARCH chroot "$dir" "$cmd" $rc_args "$@"
     local ret=$?
     local delta_t=$(( $(get_time) - t1))
 
