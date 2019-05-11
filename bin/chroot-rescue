@@ -224,7 +224,7 @@ main() {
         set_count_file "$CNT_FILE"
 
         # mount /boot if it is in /etc/fstab (with UUID)
-        mount_fstab_dir "$dir" /boot
+        mount_fstab_dirs "$dir" /boot /boot/efi
 
         # Copy the XAUTHORITY file into the chroot
         copy_in_xauthority "$dir" && MY_ENV="$MY_ENV XAUTHORITY=$XAUTH_FILE"
@@ -413,7 +413,7 @@ fs_type() {
 #------------------------------------------------------------------------------
 # Mount directories from fstab in the target system
 #------------------------------------------------------------------------------
-mount_fstab_dir() {
+mount_fstab_dirs() {
     local dir=$1  fstab_dir ; shift
 
     local fstab=$dir/etc/fstab
