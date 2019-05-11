@@ -222,7 +222,7 @@ main() {
             is_mountpoint "$targ" && TO_UMOUNT="$targ\n$TO_UMOUNT"
         done
 
-        add_resolvconf     "$dir"
+        add_resolvconf "$dir"
 
         # we are the first ones in so set the count to one
         set_count_file "$CNT_FILE"
@@ -442,56 +442,71 @@ mount_fstab_dirs() {
 
 #------------------------------------------------------------------------------
 # Let the chroot use my resolv.conf if able to
+# This is still highly flawed and easily fooled
 #------------------------------------------------------------------------------
 add_resolvconf() {
-    local dir=$1  chroot_resolv=$dir/etc/resolv.conf
-    local my_resolv=$(readlink -f /etc/resolv.conf)
+    local dir=$1  resolv_conf=/etc/resolv.conf
+    local resolv_name=$(basename $resolv_conf)
+    local my_resolv=$(readlink -f $resolv_conf)
 
     if ! test -r "$my_resolv"; then
-        warn "Could not find host resolv.conf file!"
-        return
+        warn "Could not find host %s file!" "(pq $resolv_name"
+        return 1
     fi
 
-    vsay "Host resolv.conf at %s" "$(pq $my_resolv)"
+    vsay "host %s found at %s" "$resolv_name" "$(pq $my_resolv)"
 
-    test -r "$my_resolv" || return
-    if test -L $chroot_resolv; then
-        local dest=$(readlink $chroot_resolv)
+    local dest=$resolv_conf
+    local full=$dir$dest
+    local full_dir=$(dirname "$full")
 
-        local cnt
-        for cnt in $(seq 1 10); do
-            [ -n "$dest" -a -z "${dest##../*}" ] || break
-            dest=${dest#../}
-            [ $cnt -lt 10 ] && continue
-            fatal "error while making %s symlink absolute" "$(wq resolv.conf)"
-        done
+    # keep dereferencing the symlinks
+    local cnt
+    for cnt in $(seq 1 10); do
+        if test -L "$full_dir"; then
+            dest=$($SET_ARCH chroot "$dir" readlink $(dirname "$dest"))/$(basename $dest)
+        elif test -L "$full"; then
+            dest=$($SET_ARCH chroot "$dir" readlink $dest)
+        else
+            break
+        fi
+        vsay "target %s points to %s" "$resolv_name" "$(pq $dest)"
+        full=$dir/${dest#/}
+        full_dir="$(dirname "$full")"
+    done
 
-        dest="/${dest#/}"
-        vsay "resolv.conf points to %s" "$(pq $dest)"
-        local dest_dir="$dir$(dirname "$dest")"
-
-        for cnt in $(seq 1 10); do
-            test -L "$dest_dir" || break
-            dest=$(readlink $dest_dir)/$(basename $dest)
-            vsay "resolv.conf points to %s" "$(pq $dest)"
-
-            dest_dir="$dir$(dirname "$dest")"
-            [ $cnt -lt 10 ] && continue
-            fatal "error while following %s symlinks" "$(wq resolv.conf)"
-        done
-
-        case $dest in
-            /run/*)
-                cmd mkdir -p $dest_dir
-                cmd cp $my_resolv $dest_dir ;;
-            *)
-                warn "do not know how to handle symlink to %s" "$(pq $dest)" ;;
-        esac
-
-    else
-        cmd mount --bind "$my_resolv" "$chroot_resolv"
+    if test -f "$full"; then
+        cmd mount --bind "$my_resolv" "$full"
         TO_UMOUNT="$chroot_resolv\n$TO_UMOUNT"
+        return 0
     fi
+
+    local dest_name=$(basename "$dest")
+    case $dest in
+        # for /run and /tmp just create the directory and copy file
+        /run/*|/tmp/*)
+            cmd mkdir -p "$full_dir"
+            cmd cp $my_resolv "$full_dir/"$dest_name"" ;;
+
+        # For others, try to bind mount the directory
+        /*/*)
+            local bind_dir=$MY_RESOLV_DIR
+            cmd mkdir -p "$bind_dir"
+            TO_RMDIR="$bind_dir\n$TO_RMDIR"
+
+            cmd cp "$my_resolv" "$bind_dir/$dest_name"
+            TO_RM="$bind_dir/$dest_name\n$TO_RM"
+
+            cmd mkdir -p "$full_dir"
+            cmd mount --bind $bind_dir $full_dir
+            TO_UMOUNT="$full_dir\n$TO_UMOUNT" ;;
+
+        *)
+            warn "do not know how to handle symlink to %s" "$(pq $dest)"
+            return 1 ;;
+    esac
+
+    return 0
 }
 
 #------------------------------------------------------------------------------
