@@ -14,6 +14,7 @@ ME=${0##*/}
 TRY_CMDS="/bin/bash /bin/sh"
 TO_UMOUNT=
 TO_RMDIR=
+TO_RM=
 CHROOT_DIR=
 SET_WINDOW_TITLE=
 
@@ -21,10 +22,18 @@ SUB_DIRS="sys proc dev run tmp"
 
 MY_ENV="HOME=/root"
 
-BASH_RC="/run/$ME-bashrc"
-XAUTH_FILE="/run/$ME-Xauthority"
-LOCK_FILE="/run/$ME-lock"
-CNT_FNAME="/run/$ME-count"
+WORK_DIR=/run/$ME
+
+# On host
+LOCK_FILE="$WORK_DIR/lock"
+MY_RESOLV_DIR=$WORK_DIR/resolvconf
+MY_HOSTNAME_FILE=$WORK_DIR/hostname
+
+# On target
+CNT_FNAME="$WORK_DIR-count"
+BASH_RC="$WORK_DIR-bashrc"
+XAUTH_FILE="$WORK_DIR-Xauthority"
+
 WAS_LOCKED=
 CNT_FILE=
 
@@ -132,6 +141,10 @@ main() {
 
     trap clean_up EXIT
 
+
+    TO_RMDIR="$WORK_DIR"
+    cmd mkdir $WORK_DIR
+
     # If given a block device instead of a directory, try to mount it
     if test -b "$dir"; then
         try_mount "$dir" "$MY_MNT_PNT"
@@ -205,11 +218,13 @@ main() {
             is_mountpoint "$targ" && TO_UMOUNT="$targ\n$TO_UMOUNT"
         done
 
+        add_resolvconf     "$dir"
+
         # we are the first ones in so set the count to one
         set_count_file "$CNT_FILE"
 
         # mount /boot if it is in /etc/fstab (with UUID)
-        mount_boot_dir "$dir"
+        mount_fstab_dir "$dir" /boot
 
         # Copy the XAUTHORITY file into the chroot
         copy_in_xauthority "$dir" && MY_ENV="$MY_ENV XAUTHORITY=$XAUTH_FILE"
@@ -396,23 +411,86 @@ fs_type() {
 }
 
 #------------------------------------------------------------------------------
-# Mount the boot directory in the target system
+# Mount directories from fstab in the target system
 #------------------------------------------------------------------------------
-mount_boot_dir() {
-    local dir=$1  bdir="$1/boot"
-    test -d "$bdir"       || return 2
-    is_mountpoint "$bdir" && return 2
+mount_fstab_dir() {
+    local dir=$1  fstab_dir ; shift
 
     local fstab=$dir/etc/fstab
-    test -r "$fstab"      || return 2
+    test -r "$fstab" || return
 
-    local buuid=$(sed -n -r "s|^UUID=([^ \s]+)\s+/boot\s.*|\1|p" "$fstab")
-    [ -z "$buuid" ]       && return 2
+    for fstab_dir; do
+        test -d "$fstab_dir"       || continue
+        is_mountpoint "$fstab_dir" && continue
 
-    cmd mount --uuid "$buuid" "$bdir"
-    is_mountpoint "$bdir" || return 3
+        local buuid=$(sed -n -r "s|^UUID=([^ \s]+)\s+$fstab_dir\s.*|\1|p" "$fstab")
+        [ -z "$buuid" ]            &&  continue
 
-    TO_UMOUNT="$bdir\n$TO_UMOUNT"
+        cmd mount --uuid "$buuid" "$fstab_dir"
+        is_mountpoint "$fstab_dir" || continue
+        TO_UMOUNT="$fstab_dir\n$TO_UMOUNT"
+    done
+}
+
+#------------------------------------------------------------------------------
+# Let the chroot use my resolv.conf if able to
+#------------------------------------------------------------------------------
+add_resolvconf() {
+    local dir=$1  chroot_resolv=$dir/etc/resolv.conf
+    local my_resolv=$(readlink -f /etc/resolv.conf)
+
+    if ! test -r "$my_resolv"; then
+        warn "Could not find host resolv.conf file!"
+        return
+    fi
+
+    vsay "Host resolv.conf at %s" "$(pq $my_resolv)"
+
+    test -r "$my_resolv" || return
+    if test -L $chroot_resolv; then
+        local dest=$(readlink $chroot_resolv)
+
+        local cnt
+        for cnt in $(seq 1 10); do
+            [ -n "$dest" -a -z "${dest##../*}" ] || break
+            dest=${dest#../}
+            [ $cnt -lt 10 ] && continue
+            fatal "error while making resolv.conf symlink absolute"
+        done
+        dest="/${dest#/}"
+        vsay "resolv.conf points to %s" "$(pq $dest)"
+        local dest_dir="$dir$(dirname "$dest")"
+
+        if test -L "$dest_dir"; then
+            dest=$(readlink $dest_dir)/$(basename $dest)
+            dest_dir="$dir$(dirname "$dest")"
+        fi
+
+        vsay "resolv.conf points to %s" "$(pq $dest)"
+        case $dest in
+            /run/*)
+                cmd mkdir -p $dest_dir
+                cmd cp $my_resolv $dest_dir ;;
+
+            /etc/resolvconf/run/*)
+                local bind_dir=$MY_RESOLV_DIR
+                cmd mkdir -p "$bind_dir"
+                TO_RMDIR="$bind_dir\n$TO_RMDIR"
+
+                cmd cp $my_resolv $bind_dir
+                TO_RM="$bind_dir/$(basename "$mt_resolv")\n$TO_RM"
+
+                cmd mkdir -p "$dest_dir"
+                cmd mount --bind $bind_dir $dest_dir
+                TO_UMOUNT="$dest_dir\n$TO_UMOUNT" ;;
+            *)
+                warn "do not know how to handle symlink to %s" "$(pq $dest)" ;;
+        esac
+
+    else
+        cmd mount --bind "$my_resolv" "$chroot_resolv"
+        TO_UMOUNT="$chroot_resolv\n$TO_UMOUNT"
+    fi
 }
 
 #------------------------------------------------------------------------------
@@ -422,6 +500,8 @@ clean_up()  {
 
     # Only clean up if we are the last ones out
     stop_lock "$LOCK_FILE" "$CNT_FILE" || return
+
+    cmd rm "$LOCK_FILE"
 
     # Try to kill all processes created in the chroot
     local procs=$(dir_procs "$CHROOT_DIR")
@@ -456,6 +536,14 @@ $(echo -e "$TO_UMOUNT")
 Umount
     fi
 
+    # Remove created files
+    while read targ; do
+        [ -z "$targ" ] && continue
+        cmd rm -f "$targ"
+    done<<Rm_File
+$(echo -e "$TO_RM")
+Rm_File
+
     # Finally remove any directories we created
     while read targ; do
         [ -z "$targ" ] && continue
@@ -482,7 +570,13 @@ dir_procs() {
 umount_all() {
     local top=$1  dir  failed cnt=0
     while read dir; do
-        test -d "$dir" || continue
+        test -d "$dir" || test -f "$dir" || continue
+
+        # Umount /sys and /dev all in one go
+        case $dir in
+            $top/sys/[a-z]*) continue ;;
+            $top/dev/[a-z]*) continue ;;
+        esac
         is_mountpoint "$dir" || continue
         cmd umount --recursive "$dir"
         is_mountpoint "$dir" || continue
@@ -536,6 +630,11 @@ is_mountpoint() {
 #------------------------------------------------------------------------------
 qsay() {
     [ "$QUIET" ] && return
+    say "$@"
+}
+
+vsay() {
+    [ "$VERBOSE" ] || return
     say "$@"
 }
 
@@ -666,6 +765,16 @@ pause_exit() {
 # Return time since kernel booted in 100ths of a second
 #------------------------------------------------------------------------------
 get_time() { cut -d" " -f22 /proc/self/stat; }
+
+#------------------------------------------------------------------------------
+# Only used in conjunction with cmd() which does not handle io-redirect well.
+# Using write_file() allows both PRETEND_MODE and BE_VERBOSE to work.
+#------------------------------------------------------------------------------
+write_file() {
+    local file=$1 ; shift
+    mkdir -p "$(dirname "$file")"
+    echo "$*" > "$file"
+}
 
 #------------------------------------------------------------------------------
 # Convenience routines to color substrings.
