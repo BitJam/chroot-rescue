@@ -59,6 +59,7 @@ Options:
   -a  --add-prompt=<str> Add <str> to top of the Bash prompt
   -h --help              Show this help
   -n --no-x              Don't allow Xwindows applications to launch
+  -N --no-net            Don't try set up networking (it still may work)
      --pause             Pause before normal exit
   -p --pretend           Don't actually execute commands
   -P --prompt=<str>      Use this string as the prompt
@@ -83,6 +84,7 @@ eval_argument() {
         -add-prompt=*) ADD_PROMPT=$val                 ;;
               -help|h) usage                           ;;
               -no-x|n) DISPLAY=                        ;;
+            -no-net|N) NO_NETWORK=true                 ;;
                -pause) PAUSE_EXIT=true                 ;;
            -pretend|p) PRETEND=true                    ;;
             -prompt|P) NEW_PROMPT=$val                 ;;
@@ -114,13 +116,13 @@ takes_param() {
 #------------------------------------------------------------------------------
 main() {
     [ $# -eq 0 ] && usage
-    local SHIFT SHORT_STACK="hnpPtuVv" got_cmd
+    local SHIFT SHORT_STACK="hnNpPtuVv" got_cmd
 
     read_params "$@"
     shift $SHIFT
 
     [ $# -eq 0 ] && fatal $"Expected a directory or device name"
-    local dir=$1 ; shift
+    local dir=${1%/} ; shift
     CHROOT_DIR=$dir
 
     : ${ADD_PROMPT:=(\\[$cyan\\]$dir\\[$nc_co\\]) \\[$green\\]\\d \\t \\[$magenta\\]\\w\\[$nc_co\\]}
@@ -140,7 +142,6 @@ main() {
     fi
 
     trap clean_up EXIT
-
 
     TO_RMDIR="$WORK_DIR"
     cmd mkdir $WORK_DIR
@@ -222,7 +223,7 @@ main() {
             is_mountpoint "$targ" && TO_UMOUNT="$targ\n$TO_UMOUNT"
         done
 
-        add_resolvconf "$dir"
+        [ -z "$NO_NETWORK" ] && add_resolvconf "$dir"
 
         # we are the first ones in so set the count to one
         set_count_file "$CNT_FILE"
