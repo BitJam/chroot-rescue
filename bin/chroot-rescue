@@ -471,18 +471,6 @@ add_resolvconf() {
             /run/*)
                 cmd mkdir -p $dest_dir
                 cmd cp $my_resolv $dest_dir ;;
-
-            /etc/resolvconf/run/*)
-                local bind_dir=$MY_RESOLV_DIR
-                cmd mkdir -p "$bind_dir"
-                TO_RMDIR="$bind_dir\n$TO_RMDIR"
-
-                cmd cp $my_resolv $bind_dir
-                TO_RM="$bind_dir/$(basename "$mt_resolv")\n$TO_RM"
-
-                cmd mkdir -p "$dest_dir"
-                cmd mount --bind $bind_dir $dest_dir
-                TO_UMOUNT="$dest_dir\n$TO_UMOUNT" ;;
             *)
                 warn "do not know how to handle symlink to %s" "$(pq $dest)" ;;
         esac
