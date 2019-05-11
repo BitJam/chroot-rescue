@@ -420,15 +420,22 @@ mount_fstab_dirs() {
     test -r "$fstab" || return
 
     for fstab_dir; do
-        test -d "$fstab_dir"       || continue
-        is_mountpoint "$fstab_dir" && continue
+        local full_dir=$dir$fstab_dir
+        test -d "$full_dir"       || continue
+
+
+        is_mountpoint "$full_dir" && continue
+
+        vsay "fstab dir %s"  "$(pq $fstab_dir)"
 
         local buuid=$(sed -n -r "s|^UUID=([^ \s]+)\s+$fstab_dir\s.*|\1|p" "$fstab")
         [ -z "$buuid" ]            &&  continue
 
-        cmd mount --uuid "$buuid" "$fstab_dir"
-        is_mountpoint "$fstab_dir" || continue
-        TO_UMOUNT="$fstab_dir\n$TO_UMOUNT"
+        vsay "uuid %s"  "$(pq $buuid)"
+
+        cmd mount --uuid "$buuid" "$full_dir"
+        is_mountpoint "$full_dir" || continue
+        TO_UMOUNT="$full_dir\n$TO_UMOUNT"
     done
 }
 
