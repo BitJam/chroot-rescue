@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Exec=x-terminal-emulator -e sudo chroot-rescue-scan
+Icon=ceni
+Terminal=false
+Name=Chroot Rescue Scan
+Comment=Chroot into a Linux system in order to repair it
+Categories=System;
