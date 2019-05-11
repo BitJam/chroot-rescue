@@ -447,7 +447,7 @@ add_resolvconf() {
     local my_resolv=$(readlink -f $resolv_conf)
 
     if ! test -r "$my_resolv"; then
-        warn "Could not find host %s file!" "(pq $resolv_name"
+        warn "Could not find host %s file!" "$(pq $resolv_name)"
         return 1
     fi
 
@@ -458,15 +458,30 @@ add_resolvconf() {
     local full_dir=$(dirname "$full")
 
     # keep dereferencing the symlinks
-    local cnt
-    for cnt in $(seq 1 10); do
+    local cnt dest_dir
+    for cnt in $(seq 0 10); do
+
+        if [ $cnt -ge 10 ]; then
+            warn "Too many %s symlinks" "$(pq $resolv_name)"
+            return 1
+        fi
+
+        # Get the previous directory for relaiive symlinks
+        dest_dir=$(dirname $dest)
         if test -L "$full_dir"; then
-            dest=$($SET_ARCH chroot "$dir" readlink $(dirname "$dest"))/$(basename $dest)
+            dest=$($SET_ARCH chroot "$dir" readlink $(dirname "$dest"))/$(basename "$dest")
         elif test -L "$full"; then
-            dest=$($SET_ARCH chroot "$dir" readlink $dest)
+            dest=$($SET_ARCH chroot "$dir" readlink "$dest")
         else
             break
         fi
+
+        # Handle relative symlinks
+        case "$dest" in
+            /*)  ;;
+             *) dest="$dest_dir/$dest" ;;
+        esac
+
         vsay "target %s points to %s" "$resolv_name" "$(pq $dest)"
         full=$dir/${dest#/}
         full_dir="$(dirname "$full")"
