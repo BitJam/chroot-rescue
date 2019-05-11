@@ -467,8 +467,9 @@ add_resolvconf() {
             return 1
         fi
 
-        # Get the previous directory for relaiive symlinks
+        # Get the previous directory for relative symlinks
         dest_dir=$(dirname $dest)
+
         if test -L "$full_dir"; then
             dest=$($SET_ARCH chroot "$dir" readlink $(dirname "$dest"))/$(basename "$dest")
         elif test -L "$full"; then
