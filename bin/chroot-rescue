@@ -143,9 +143,6 @@ main() {
 
     trap clean_up EXIT
 
-    TO_RMDIR="$WORK_DIR"
-    cmd mkdir $WORK_DIR
-
     # If given a block device instead of a directory, try to mount it
     if test -b "$dir"; then
         try_mount "$dir" "$MY_MNT_PNT"
@@ -189,11 +186,13 @@ main() {
     # Slightly redundant
     local full_cmd="$dir/$cmd"
     test -e "$full_cmd"  || fatal $"Could not find command %s" "$(wq $full_cmd)"
-    test -x "$full_cmd"  || fatal $"%s is not an executable"    "$(wq $full_cmd)"
-
+    test -x "$full_cmd"  || fatal $"%s is not an executable"   "$(wq $full_cmd)"
 
     CNT_FILE="$dir/$CNT_FNAME"
     start_lock "$LOCK_FILE" "$CNT_FILE"
+
+    TO_RMDIR="$WORK_DIR"
+    cmd mkdir -p $WORK_DIR
 
     local rc_args
     if [ -z "$WAS_LOCKED" ]; then
@@ -242,7 +241,6 @@ main() {
     fi
 
     # --- do the chroot --------------------------------------------------------
-
     :
 
     # "chroot" is the name of a command
