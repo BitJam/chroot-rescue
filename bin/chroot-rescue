@@ -25,7 +25,7 @@ MY_ENV="HOME=/root"
 WORK_DIR=/run/$ME
 
 # On host
-LOCK_FILE="$WORK_DIR/lock"
+LOCK_FILE="/run/lock/$ME"
 MY_RESOLV_DIR=$WORK_DIR/resolvconf
 MY_HOSTNAME_FILE=$WORK_DIR/hostname
 
