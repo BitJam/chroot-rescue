@@ -455,6 +455,7 @@ add_resolvconf() {
     local dest=$resolv_conf
     local full=$dir$dest
     local full_dir=$(dirname "$full")
+    local full_dir_dir=$(dirname "$full_dir")
 
     # keep dereferencing the symlinks
     local cnt dest_dir
@@ -468,7 +469,16 @@ add_resolvconf() {
         # Get the previous directory for relative symlinks
         dest_dir=$(dirname $dest)
 
-        if test -L "$full_dir"; then
+        if test -L "$full_dir_dir"; then
+            local dest_dd=${full_dir_dir#$dir}
+            local dest_bb=${dest#$dest_dd/}
+            #-jbb echo "full_dir_dir: $full_dir_dir"
+            #-jbb echo "dest:    $dest"
+            #-jbb echo "dest_dd: $dest_dd"
+            #-jbb echo "dest_bb: $dest_bb"
+            dest="$($SET_ARCH chroot "$dir" readlink "$dest_dd")/$dest_bb"
+
+        elif test -L "$full_dir"; then
             dest=$($SET_ARCH chroot "$dir" readlink $(dirname "$dest"))/$(basename "$dest")
         elif test -L "$full"; then
             dest=$($SET_ARCH chroot "$dir" readlink "$dest")
@@ -485,6 +495,7 @@ add_resolvconf() {
         vsay "target %s points to %s" "$resolv_name" "$(pq $dest)"
         full=$dir/${dest#/}
         full_dir="$(dirname "$full")"
+        full_dir_dir=$(dirname "$full_dir")
     done
 
     if test -f "$full"; then
