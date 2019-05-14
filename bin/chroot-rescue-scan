@@ -759,7 +759,7 @@ scan_mode() { [ -z "${ME%%*-scan}" ] ; return $? ; }
 #------------------------------------------------------------------------------
 can_use_mp() {
     # Create trial mntpnt with bad chars converted to underscore
-    local mp="$TOP_DIR/$(printf %s "$1" | sed -r s'=(\s|[_/])+=_=g')"
+    local mp="${TOP_DIR%/}/$(printf %s "$1" | sed -r s'=(\s|[_/])+=_=g')"
     # If it is already in use return failure
     is_mountpoint -q $mp && return 1
 
