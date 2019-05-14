@@ -178,7 +178,6 @@ main() {
     test -e "$TOP_DIR" || ui_fatal $"Top directory %s not found" "$TOP_DIR"
     test -d "$TOP_DIR" || ui_fatal $"Top directory %s is not a directory" "$TOP_DIR"
 
- 
     shout_title $"Starting %s" "$ME"
     set_window_title "$ME"
 
