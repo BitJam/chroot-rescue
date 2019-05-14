@@ -145,6 +145,9 @@ main() {
     local SHIFT  SHORT_STACK="CdhmsvV"
     unset DID_SCAN
 
+    # Do this before reading command line args
+    scan_mode && TOP_DIR=/media/$ME
+
     set_colors
 
     local orig_args="$*"
@@ -165,6 +168,8 @@ main() {
 
     local chroot_cmd=$(find_my_cmd "$CHROOT_CMD")
 
+    scan_mode && ! test -d "$TOP_DIR" && cmd mkdir -p "$TOP_DIR"
+
     test -e "$TOP_DIR" || ui_fatal $"Top directory %s not found" "$TOP_DIR"
     test -d "$TOP_DIR" || ui_fatal $"Top directory %s is not a directory" "$TOP_DIR"
 
@@ -173,13 +178,11 @@ main() {
     shout_title $"Starting %s" "$ME"
     set_window_title "$ME"
 
-    # If our name ends in -scan then scan all partitions
-    if [ -z "${ME%%*-scan}" ]; then
-        #trap on_exit EXIT
-        scan_devices
-    fi
-
     TOP_DIR=${TOP_DIR%/}/
+
+    # Scan all partitions in scan mode
+    scan_mode && scan_devices
+
 
     # Please try to keep these names short: Distro Date Dir Device
     local Distro=$"Distro"  Date=$"Date"  Dir=$"Dir"  Device=$"Device"
