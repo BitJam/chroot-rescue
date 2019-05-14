@@ -453,7 +453,7 @@ add_resolvconf() {
     vsay "host %s found at %s" "$resolv_name" "$(pq $host_resolv)"
 
     # Follow all symlinks if there are any
-    local dest=$($SET_ARCH chroot "$dir" realpath -m "$resolv_conf")
+    local dest=$($SET_ARCH chroot "$dir" readlink -m "$resolv_conf")
     vsay "target %s points to %s" "$resolv_name" "$(pq $dest)"
 
     local full=$dir/${dest#/}
