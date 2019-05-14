@@ -66,6 +66,7 @@ Options:
   -m  --menu              Output menu information then exit
   -s  --separator=<x>     Character to separate columns of data
                           Default: $K_IFS
+  -V  --verbose           Print more, including many commands
   -v  --version           Show the version number and date
 Usage
     exit $ret
@@ -91,6 +92,7 @@ Options:
   -m  --menu              Output menu information then exit
   -s  --separator=<x>     Character to separate columns of data
                           Default: $K_IFS
+  -V  --verbose           Print more, including many commands
   -v  --version           Show the version number and date
 Usage
     exit $ret
@@ -119,6 +121,7 @@ eval_argument() {
          -separator|s)  K_IFS=$val                       ;;
          -separator=*)  K_IFS=$val                       ;;
              -color=*)  COLOR_SCHEME=$val                ;;
+           -verbose|V)  VERY_VERBOSE=true                ;;
                     *)  fatal $"Unknown parameter %s" "-$arg"  ;;
     esac
 }
@@ -139,7 +142,7 @@ takes_param() {
 # The main routine.  Called from the very bottom of this script.
 #==============================================================================
 main() {
-    local SHIFT  SHORT_STACK="Cdhmsv"
+    local SHIFT  SHORT_STACK="CdhmsvV"
     unset DID_SCAN
 
     set_colors
