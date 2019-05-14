@@ -8,6 +8,16 @@ multiple systems without rebooting.
 If it has a problem identifying a Linux distro, please let me
 know and (ideally) show me how to correctly identify that system.
 
+# QUICK START
+
+If the chroot rescue suite is not already on your system, you can
+quicky download the git version and start running it.
+
+    sudo apt-get update       # if needed
+    sudo apt-get install git  # if needed
+    git clone https://github.com/BitJam/chroot-rescue
+    git clone https://github.com/BitJam/cli-shell-utils
+    sudo chroot-rescue/bin/chroot-rescue-scan
 
 ## chroot-rescue-scan
 
