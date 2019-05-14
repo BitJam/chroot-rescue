@@ -16,9 +16,10 @@
        ME=${0##*/}
     MY_DIR=$(dirname "$(readlink -f $0)")
 MY_LIB_DIR=$(readlink -f "$MY_DIR/../cli-shell-utils")
+MY_LIB_DIR_2=$(readlink -f "$MY_DIR/../../cli-shell-utils")
    LIB_DIR="/usr/local/lib/cli-shell-utils"
  SHELL_LIB="cli-shell-utils.bash"
-  LIB_PATH="$MY_LIB_DIR:$LIB_DIR"
+  LIB_PATH="$MY_LIB_DIR:$MY_LIB_DIR_2:$LIB_DIR"
 CHROOT_CMD="chroot-rescue"
 
 DEFAULT_DISTRO_NAME="Linux"
