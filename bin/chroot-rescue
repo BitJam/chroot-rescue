@@ -443,73 +443,35 @@ mount_fstab_dirs() {
 add_resolvconf() {
     local dir=$1  resolv_conf=/etc/resolv.conf
     local resolv_name=$(basename $resolv_conf)
-    local my_resolv=$(readlink -f $resolv_conf)
+    local host_resolv=$(realpath -m $resolv_conf)
 
-    if ! test -r "$my_resolv"; then
+    if ! test -r "$host_resolv"; then
         warn "Could not find host %s file!" "$(pq $resolv_name)"
         return 1
     fi
 
-    vsay "host %s found at %s" "$resolv_name" "$(pq $my_resolv)"
+    vsay "host %s found at %s" "$resolv_name" "$(pq $host_resolv)"
 
-    local dest=$resolv_conf
-    local full=$dir$dest
+    # Follow all symlinks if there are any
+    local dest=$($SET_ARCH chroot "$dir" realpath -m "$resolv_conf")
+    vsay "target %s points to %s" "$resolv_name" "$(pq $dest)"
+
+    local full=$dir/${dest#/}
+    local dest_name=$(basename "$dest")
     local full_dir=$(dirname "$full")
-    local full_dir_dir=$(dirname "$full_dir")
 
-    # keep dereferencing the symlinks
-    local cnt dest_dir
-    for cnt in $(seq 0 10); do
-
-        if [ $cnt -ge 10 ]; then
-            warn "Too many %s symlinks" "$(pq $resolv_name)"
-            return 1
-        fi
-
-        # Get the previous directory for relative symlinks
-        dest_dir=$(dirname $dest)
-
-        if test -L "$full_dir_dir"; then
-            local dest_dd=${full_dir_dir#$dir}
-            local dest_bb=${dest#$dest_dd/}
-            #-jbb echo "full_dir_dir: $full_dir_dir"
-            #-jbb echo "dest:    $dest"
-            #-jbb echo "dest_dd: $dest_dd"
-            #-jbb echo "dest_bb: $dest_bb"
-            dest="$($SET_ARCH chroot "$dir" readlink "$dest_dd")/$dest_bb"
-
-        elif test -L "$full_dir"; then
-            dest=$($SET_ARCH chroot "$dir" readlink $(dirname "$dest"))/$(basename "$dest")
-        elif test -L "$full"; then
-            dest=$($SET_ARCH chroot "$dir" readlink "$dest")
-        else
-            break
-        fi
-
-        # Handle relative symlinks
-        case "$dest" in
-            /*)  ;;
-             *) dest="$dest_dir/$dest" ;;
-        esac
-
-        vsay "target %s points to %s" "$resolv_name" "$(pq $dest)"
-        full=$dir/${dest#/}
-        full_dir="$(dirname "$full")"
-        full_dir_dir=$(dirname "$full_dir")
-    done
-
+    # If it is a real file then bind mount to it and we're done
     if test -f "$full"; then
-        cmd mount --bind "$my_resolv" "$full"
+        cmd mount --bind "$host_resolv" "$full"
         TO_UMOUNT="$chroot_resolv\n$TO_UMOUNT"
         return 0
     fi
 
-    local dest_name=$(basename "$dest")
     case $dest in
         # for /run and /tmp just create the directory and copy file
         /run/*|/tmp/*)
             cmd mkdir -p "$full_dir"
-            cmd cp $my_resolv "$full_dir/"$dest_name"" ;;
+            cmd cp $host_resolv "$full_dir/"$dest_name"" ;;
 
         # For others, try to bind mount the directory
         /*/*)
@@ -517,7 +479,7 @@ add_resolvconf() {
             cmd mkdir -p "$bind_dir"
             TO_RMDIR="$bind_dir\n$TO_RMDIR"
 
-            cmd cp "$my_resolv" "$bind_dir/$dest_name"
+            cmd cp "$host_resolv" "$bind_dir/$dest_name"
             TO_RM="$bind_dir/$dest_name\n$TO_RM"
 
             cmd mkdir -p "$full_dir"
