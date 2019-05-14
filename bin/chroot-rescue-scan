@@ -21,6 +21,7 @@ MY_LIB_DIR_2=$(readlink -f "$MY_DIR/../../cli-shell-utils")
  SHELL_LIB="cli-shell-utils.bash"
   LIB_PATH="$MY_LIB_DIR:$MY_LIB_DIR_2:$LIB_DIR"
 CHROOT_CMD="chroot-rescue"
+  WORK_DIR="/run/$ME"
 
 DEFAULT_DISTRO_NAME="Linux"
 
