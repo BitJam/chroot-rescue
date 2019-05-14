@@ -168,6 +168,8 @@ main() {
 
     local chroot_cmd=$(find_my_cmd "$CHROOT_CMD")
 
+    trap on_exit EXIT
+
     if scan_mode && ! test -d "$TOP_DIR"; then
         cmd mkdir -p "$TOP_DIR"
         TO_RMDIR="$TOP_DIR\n$TO_RMDIR"
@@ -176,8 +178,7 @@ main() {
     test -e "$TOP_DIR" || ui_fatal $"Top directory %s not found" "$TOP_DIR"
     test -d "$TOP_DIR" || ui_fatal $"Top directory %s is not a directory" "$TOP_DIR"
 
-    trap on_exit EXIT
-
+ 
     shout_title $"Starting %s" "$ME"
     set_window_title "$ME"
 
