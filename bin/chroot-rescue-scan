@@ -693,12 +693,12 @@ try_mount() {
 
     is_mountpoint "$dir" && return 1
     if ! test -d "$dir"; then
-        mkdir -p "$dir"
+        cmd mkdir -p "$dir"
     fi
     test -d "$dir" || return 1
-    mount "$@" "$dev" "$dir"
+    cmd mount "$@" "$dev" "$dir"
     if ! is_mountpoint "$dir"; then
-        rmdir "$dir"
+        cmd rmdir "$dir"
         return 1
     fi
     if is_linux "$dir"; then
@@ -706,8 +706,8 @@ try_mount() {
         TO_UMOUNT="$dir\n$TO_UMOUNT"
         return 0
     fi
-    umount "$dir"
-    rmdir "$dir"
+    cmd umount "$dir"
+    cmd rmdir "$dir"
 }
 
 
