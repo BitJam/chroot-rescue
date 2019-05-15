@@ -117,6 +117,9 @@ eval_argument() {
     case $arg in
              -color|C)  COLOR_SCHEME=$val                ;;
                -dir|d)  TOP_DIR=$val                     ;;
+               -dir=*)  TOP_DIR=$val                     ;;
+         -directory=*)  TOP_DIR=$val                     ;;
+           -directory)  TOP_DIR=$val                     ;;
               -menu|m)  MENU_MODE=true                   ;;
          -separator|s)  K_IFS=$val                       ;;
          -separator=*)  K_IFS=$val                       ;;
