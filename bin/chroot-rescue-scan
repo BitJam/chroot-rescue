@@ -199,22 +199,24 @@ main() {
     test -e "$TOP_DIR" || ui_fatal $"Top directory %s not found" "$TOP_DIR"
     test -d "$TOP_DIR" || ui_fatal $"Top directory %s is not a directory" "$TOP_DIR"
 
-    shout_title $"Starting %s" "$ME"
-    set_window_title "$ME"
+    if [ -z "$MENU_MODE" ]; then
+        shout_title $"Starting %s" "$ME"
+        set_window_title "$ME"
+    fi
 
     TOP_DIR=${TOP_DIR%/}/
 
     # Scan all partitions in scan mode
     scan_mode && scan_devices
 
-
     # Please try to keep these names short: Distro Date Dir Device
     local Distro=$"Distro"  Date=$"Date"  Dir=$"Dir"  Device=$"Device"
+
     # Please try to keep these names short: Size  Arch
     # "Arch" means 32-bit or 64-bit architecture
     local Size=$"Size"  Arch=$"Arch" Label=$"Label"
 
-    local title=$"Please select a Linux System to visit"
+    local title=$"Please select a Linux system to visit"
 
     HEADER_3="$Distro${K_IFS}$Dir${K_IFS}$Device"
     HEADER_4="$Distro${K_IFS}$Date${K_IFS}$Dir${K_IFS}$Device"
@@ -222,7 +224,15 @@ main() {
     HEADER_6="$HEADER_4${K_IFS}$Arch${K_IFS}$Label"
 
     if [ "$MENU_MODE" ]; then
-        local data=$(main_data_5 "$TOP_DIR")
+
+        main_data "$TOP_DIR"
+        local header data
+        case $MAX_COLS in
+            3) header=$HEADER_3 ; data=$DATA_3 ;;
+            4) header=$HEADER_4 ; data=$DATA_4 ;;
+            5) header=$HEADER_5 ; data=$DATA_5 ;;
+            *) header=$HEADER_6 ; data=$DATA_6 ;;
+        esac
         #echo -e "$data" ; return
 
         local line_cnt=$(count_lines "$data")
@@ -231,7 +241,7 @@ main() {
             1) ui_note  $"Only one Linux system was found"
         esac
 
-        ui_combo_box 5 "$title"  "$HEADER_5" "$data"  $line_cnt
+        ui_combo_box 5 "$title"  "$header" "$data"  $line_cnt
 
         exit 0
     fi
