@@ -24,11 +24,16 @@ CHROOT_CMD="chroot-rescue"
   WORK_DIR="/run/$ME"
 
 DEFAULT_DISTRO_NAME="Linux"
+MAX_DISTRO_WIDTH=40
 
 MAJOR_DEV_LIST="3,8,22,179,202,254,259"
 
 TO_RMDIR=
 TO_UMOUNT=
+
+MAX_COLS=6
+
+SCREEN_WIDTH=$(stty size 2>/dev/null | cut -d" " -f2)
 
 export TEXTDOMAIN="chroot-rescue-scan"
 
@@ -64,6 +69,7 @@ Options:
                           Default: $TOP_DIR
   -h  --help              Show this usage
   -m  --menu              Output menu information then exit
+  -M  --max-cols=<x>      Can be 3,4,5, or 6
   -s  --separator=<x>     Character to separate columns of data
                           Default: $K_IFS
   -V  --verbose           Print more, including many commands
@@ -90,6 +96,7 @@ Options:
                           Default: $TOP_DIR
   -h  --help              Show this usage
   -m  --menu              Output menu information then exit
+  -M  --max-cols=<x>      Can be 3,4,5, or 6
   -s  --separator=<x>     Character to separate columns of data
                           Default: $K_IFS
   -V  --verbose           Print more, including many commands
@@ -121,6 +128,8 @@ eval_argument() {
          -directory=*)  TOP_DIR=$val                     ;;
            -directory)  TOP_DIR=$val                     ;;
               -menu|m)  MENU_MODE=true                   ;;
+          -max-cols|M)  MAX_COLS=$val                    ;;
+          -max-cols=*)  MAX_COLS=$val                    ;;
          -separator|s)  K_IFS=$val                       ;;
          -separator=*)  K_IFS=$val                       ;;
              -color=*)  COLOR_SCHEME=$val                ;;
@@ -137,6 +146,7 @@ takes_param() {
           -color|C) return 0 ;;
             -dir|d) return 0 ;;
       -separator|s) return 0 ;;
+       -max-cols|M) return 0 ;;
     esac
     return 1
 }
@@ -145,7 +155,7 @@ takes_param() {
 # The main routine.  Called from the very bottom of this script.
 #==============================================================================
 main() {
-    local SHIFT  SHORT_STACK="CdhmsvV"
+    local SHIFT  SHORT_STACK="CdhmMsvV"
     unset DID_SCAN
 
     # Do this before reading command line args
@@ -161,6 +171,11 @@ main() {
     read_params "$@"
 
     set_colors $COLOR_SCHEME
+
+    case $MAX_COLS in
+        [3456]) ;;
+             *) fatal "%s must be %s" "$(wq --max-cols)" "3, 4, 5, or 6" ;;
+    esac
 
     shift $SHIFT
     fatal_n0 $# $"Extra command line parameters %s" "$*"
@@ -194,12 +209,14 @@ main() {
     local Distro=$"Distro"  Date=$"Date"  Dir=$"Dir"  Device=$"Device"
     # Please try to keep these names short: Size  Arch
     # "Arch" means 32-bit or 64-bit architecture
-    local Size=$"Size"  Arch=$"Arch"
+    local Size=$"Size"  Arch=$"Arch" Label=$"Label"
 
     local title=$"Please select a Linux System to visit"
-    header_4="$Distro${K_IFS}$Date${K_IFS}$Dir${K_IFS}$Device"
-    header_5="$header_4${K_IFS}$Size"
-    header_5="$header_4${K_IFS}$Arch"
+
+    HEADER_3="$Distro${K_IFS}$Dir${K_IFS}$Device"
+    HEADER_4="$Distro${K_IFS}$Date${K_IFS}$Dir${K_IFS}$Device"
+    HEADER_5="$HEADER_4${K_IFS}$Arch"
+    HEADER_6="$HEADER_4${K_IFS}$Arch${K_IFS}$Label"
 
     if [ "$MENU_MODE" ]; then
         local data=$(main_data_5 "$TOP_DIR")
@@ -211,7 +228,7 @@ main() {
             1) ui_note  $"Only one Linux system was found"
         esac
 
-        ui_combo_box 5 "$title"  "$header_5" "$data"  $line_cnt
+        ui_combo_box 5 "$title"  "$HEADER_5" "$data"  $line_cnt
 
         exit 0
     fi
@@ -222,17 +239,21 @@ main() {
     while true; do
         msg $"Scanning directories ..."
 
-        local data=$(main_data_5 "$TOP_DIR")
+        main_data "$TOP_DIR"
+
+        #local data=$(main_data_5 "$TOP_DIR")
         #echo -e "$data" ; return
 
-        case $(count_lines "$data") in
+        case $(count_lines "$DATA_5") in
             0) fatal $"No Linux systems were found under %s" "$TOP_DIR" ;;
             1) Msg $"Only one Linux system was found"
         esac
 
         local dir
-        select_cols_5  dir "$title"  "$header_5" "$data"
-        #yad_combo_box_5 dir  "$title"  "$header_5" "$data"
+        #select_cols_5  dir "$title"  "$HEADER_5" "$data"
+        select_data dir "$title"
+
+        #yad_combo_box_5 dir  "$title"  "$HEADER_5" "$data"
 
         case $dir in
             rescan) scan_devices ; continue ;;
@@ -345,6 +366,46 @@ $(find "$top_dir" -mindepth 1 -maxdepth 2 -type d)
 Get_Dirs
 }
 
+#------------------------------------------------------------------------------
+# Sorted chronologically:
+# dir (payload)  distro  date  dir  device  arch
+#------------------------------------------------------------------------------
+main_data() {
+    local top_dir=$1  dir
+    unset DATA_3 DATA_4 DATA_5  DATA_6
+
+    while read dir; do
+        [ -z "$dir" ]        && continue
+        is_mountpoint "$dir" || continue
+        is_linux "$dir"      || continue
+        #echo "$dir$K_IFS$(linux_entry "$dir")$K_IFS$(human_size "$dir")"
+        local    _date=$(fs_date "$dir")
+        local    _sdir=$(basename "$dir")
+        local  _distro=$(distro_name "$dir")
+
+        local   distro="$K_IFS$_distro"
+        local s_distro="$K_IFS$(clip_string "$_distro" 20)"
+        local     date="$K_IFS$_date"
+        local     sdir="$K_IFS$_sdir"
+        local     arch="$K_IFS$(get_arch "$dir")"
+        local      dev="$K_IFS$(fs_dev "$dir")"
+        local    label="$K_IFS$(get_label "$dir")"
+
+        local first_cols="$_date:$dir$distro$date$sdir$dev"
+
+        DATA_3="$DATA_3$_date:$dir$s_distro$sdir$dev\n"
+        DATA_4="$DATA_4$first_cols\n"
+        DATA_5="$DATA_5$first_cols$arch\n"
+        DATA_6="$DATA_6$first_cols$arch$label\n"
+    done << Get_Dirs
+$(find "$top_dir" -mindepth 1 -maxdepth 2 -type d)
+Get_Dirs
+
+    DATA_3=$(echo -e "$DATA_3" | sort -r | sed "s/^[^:]\+://")
+    DATA_4=$(echo -e "$DATA_4" | sort -r | sed "s/^[^:]\+://")
+    DATA_5=$(echo -e "$DATA_5" | sort -r | sed "s/^[^:]\+://")
+    DATA_6=$(echo -e "$DATA_6" | sort -r | sed "s/^[^:]\+://")
+}
 
 human_size() {
     df -h "$1" 2>/dev/null | tail -n1 | awk '{print $2}'
@@ -357,6 +418,19 @@ get_arch() {
         echo "32-bit"
     fi
 }
+
+#------------------------------------------------------------------------------
+# Get partition label of device mounted at $dir
+#------------------------------------------------------------------------------
+get_label() {
+    local dir=$1
+    local dev=$(df "$dir" | awk 'END{print $1}')
+    test -b "$dev" || return
+    local label=$(lsblk -no label "$dev")
+    echo "${label:-  -}"
+
+}
+
 #------------------------------------------------------------------------------
 #
 #------------------------------------------------------------------------------
@@ -384,16 +458,17 @@ is_linux() {
 #
 #------------------------------------------------------------------------------
 distro_name() {
-    local dir=$1  distro
+    local dir=$1  max_width=${2:-$MAX_DISTRO_WIDTH}  distro
     local fname distro file
     for fname in antix-version mx-version; do
         file="$dir/etc/$fname"
         test -e "$file" || continue
         distro=$(head -n1 "$file" 2>/dev/null)
         [ -z "$distro" ] && continue
-        echo -n "$distro"  | sed -r \
+        distro=$(echo -n "$distro"  | sed -r \
             -e "s/\s+[0-9][0-9]?\s[A-Z][a-z]*\s+[0-9]+$//" \
-            -e "s/\s+[A-Z][a-z][a-z]\s+[0-9]+,\s+[0-9]+$//"
+            -e "s/\s+[A-Z][a-z][a-z]\s+[0-9]+,\s+[0-9]+$//")
+        clip_string "$distro" $max_width
         return
     done
 
@@ -409,7 +484,20 @@ distro_name() {
         distro="$distro $(get_value DISTRIB_CODENAME "$file")"
         break
     done
+    distro=$(clip_string "$distro" $max_width)
     echo -n ${distro:-$DEFAULT_DISTRO_NAME}
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+clip_string() {
+    local str=$1  width=$2
+    if [ ${#str} -gt $width ]; then
+        echo "${str:0:$((width - 1))}|"
+    else
+        echo "$str"
+    fi
 }
 
 #------------------------------------------------------------------------------
@@ -574,6 +662,225 @@ Print
 #------------------------------------------------------------------------------
 #
 #------------------------------------------------------------------------------
+select_data() {
+    local var=$1 title=$2  width  table
+
+    local screen_width=${SCREEN_WIDTH:-10000}
+    local targ_width=$((screen_width - 5))
+
+    #SCREEN_WIDTH=0
+
+    while true; do
+
+        if [ $MAX_COLS -ge 6 ]; then
+            table=$(table_6 "$HEADER_6" "$DATA_6")
+            width=$(get_width "$table")
+            [ $width -le $targ_width ] && break
+        fi
+
+        if [ $MAX_COLS -ge 5 ]; then
+            table=$(table_5 "$HEADER_5" "$DATA_5")
+            width=$(get_width "$table")
+            echo "$table" | strip_ansi | cat -A
+            echo "width: $width"
+            [ $width -le $targ_width ] && break
+        fi
+
+        if [ $MAX_COLS -ge 4 ]; then
+            table=$(table_4 "$HEADER_4" "$DATA_4")
+            width=$(get_width "$table")
+            [ $width -le $targ_width ] && break
+        fi
+
+        table=$(table_3 "$HEADER_3" "$DATA_3")
+        break
+    done
+
+    my_select $var "$title" "$table\n$(end_of_menu)"
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+get_width() {
+    local table=$1
+    echo -e "$table" | sed "s/^[^$P_IFS]*$P_IFS//" | strip_ansi | wc -L
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+table_3() {
+    local header=$1  list=$2
+    local h1 h2 h3 orig_ifs=$IFS
+
+    local IFS=$K_IFS
+
+    read h1 h2 h3 <<Header
+$(echo -e "$header")
+Header
+
+    # Get field widths
+    local w1=${#h1}  w2=${#h2}
+    local p f1 f2 f3
+
+    while read p f1 f2 f3; do
+        [ $w1 -lt ${#f1} ] &&  w1=${#f1}
+        [ $w2 -lt ${#f2} ] &&  w2=${#f2}
+    done<<Widths
+$(echo "$list")
+Widths
+
+    local fmt="$m_co%-${w1}s $hi_co%-${w2}s $date_co%-s $nc_co"
+    local hfmt="$head_co%s %s  %s %-s$nc_co\n"
+    local data="$P_IFS$(printf "$hfmt" "$(rpad $w1 "$h1")" "$(rpad $w2 "$h2")" \
+         "$h3")\n"
+
+    while read p f1 f2 f3; do
+        [ ${#f1} -gt 0 ] || continue
+        data="$data$p$P_IFS$(printf "$fmt" "$(rpad $w1 "$f1")" "$f2" "$f3")\n"
+    done<<Print
+$(echo "$list")
+Print
+
+    IFS=$orig_ifs
+
+    echo -e "$data"
+}
+
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+table_4() {
+    local header=$1  list=$2
+    local h1 h2 h3 h4 orig_ifs=$IFS
+
+    local IFS=$K_IFS
+
+    read h1 h2 h3 h4 <<Header
+$(echo -e "$header")
+Header
+
+    # Get field widths
+    local w1=${#h1}  w2=${#h2}  w3=${#h3}
+    local p f1 f2 f3 f4
+
+    while read p f1 f2 f3 f4; do
+        [ $w1 -lt ${#f1} ] &&  w1=${#f1}
+        [ $w2 -lt ${#f2} ] &&  w2=${#f2}
+        [ $w3 -lt ${#f3} ] &&  w3=${#f3}
+    done<<Widths
+$(echo "$list")
+Widths
+
+    local fmt="$m_co%-${w1}s $hi_co%-${w2}s  %-${w3}s $date_co%-s $nc_co"
+    local hfmt="$head_co%s %s  %s %-s$nc_co\n"
+    local data="$P_IFS$(printf "$hfmt" "$(rpad $w1 "$h1")" "$(rpad $w2 "$h2")" \
+        "$(rpad $w3 "$h3")" "$h4")\n"
+
+    while read p f1 f2 f3 f4; do
+        [ ${#f1} -gt 0 ] || continue
+        data="$data$p$P_IFS$(printf "$fmt" "$(rpad $w1 "$f1")" "$f2" "$f3" "$f4")\n"
+    done<<Print
+$(echo "$list")
+Print
+
+    IFS=$orig_ifs
+
+    echo -e "$data"
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+table_5() {
+    local header=$1  list=$2
+    local h1 h2 h3 h4 h5 orig_ifs=$IFS
+
+    local IFS=$K_IFS
+
+    read h1 h2 h3 h4 h5 <<Header
+$(echo -e "$header")
+Header
+
+    # Get field widths
+    local w1=${#h1}  w2=${#h2}  w3=${#h3} w4=${#h4}
+    local p f1 f2 f3 f4 f5
+
+    while read p f1 f2 f3 f4 f5; do
+        [ $w1 -lt ${#f1} ] &&  w1=${#f1}
+        [ $w2 -lt ${#f2} ] &&  w2=${#f2}
+        [ $w3 -lt ${#f3} ] &&  w3=${#f3}
+        [ $w4 -lt ${#f4} ] &&  w4=${#f4}
+    done<<Widths
+$(echo "$list")
+Widths
+
+    local fmt="$m_co%-${w1}s $hi_co%-${w2}s  %-${w3}s %-${w4}s $date_co%-s $nc_co"
+    local hfmt="$head_co%s %s  %s %s %-s$nc_co\n"
+    local data="$P_IFS$(printf "$hfmt" "$(rpad $w1 "$h1")" "$(rpad $w2 "$h2")" \
+        "$(rpad $w3 "$h3")" "$(rpad $w4 "$h4")" "$h5")\n"
+
+    while read p f1 f2 f3 f4 f5; do
+        [ ${#f1} -gt 0 ] || continue
+        data="$data$p$P_IFS$(printf "$fmt" "$(rpad $w1 "$f1")" "$f2" "$f3" "$f4" "$f5")\n"
+    done<<Print
+$(echo "$list")
+Print
+
+    IFS=$orig_ifs
+
+    echo -e "$data"
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+table_6() {
+    local header=$1  list=$2
+    local h1 h2 h3 h4 h5 h6 orig_ifs=$IFS
+
+    local IFS=$K_IFS
+
+    read h1 h2 h3 h4 h5 h6<<Header
+$(echo -e "$header")
+Header
+
+    # Get field widths
+    local w1=${#h1}  w2=${#h2}  w3=${#h3}  w4=${#h4}  w5=${#h5}
+    local p f1 f2 f3 f4 f5 f6
+
+    while read p f1 f2 f3 f4 f5 f6; do
+        [ $w1 -lt ${#f1} ] &&  w1=${#f1}
+        [ $w2 -lt ${#f2} ] &&  w2=${#f2}
+        [ $w3 -lt ${#f3} ] &&  w3=${#f3}
+        [ $w4 -lt ${#f4} ] &&  w4=${#f4}
+        [ $w5 -lt ${#f5} ] &&  w5=${#f5}
+    done<<Widths
+$(echo "$list")
+Widths
+
+    local fmt="$m_co%-${w1}s $hi_co%-${w2}s  %-${w3}s %-${w4}s %-${w5}s $date_co%-s $nc_co"
+    local hfmt="$head_co%s %s  %s %s %s %-s$nc_co\n"
+    local data="$P_IFS$(printf "$hfmt" "$(rpad $w1 "$h1")" "$(rpad $w2 "$h2")" \
+        "$(rpad $w3 "$h3")" "$(rpad $w4 "$h4")" "$(rpad $w5 "$h5")" "$h6")\n"
+
+    while read p f1 f2 f3 f4 f5 f6; do
+        [ ${#f1} -gt 0 ] || continue
+        data="$data$p$P_IFS$(printf "$fmt" "$(rpad $w1 "$f1")" "$f2" "$f3" "$f4" "$f5" "$f6")\n"
+    done<<Print
+$(echo "$list")
+Print
+
+    IFS=$orig_ifs
+
+    echo -e "$data"
+}
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
 end_of_menu() {
     if [ "$DID_SCAN" ]; then
         menu_printf 'rescan' "$(hq $"Rescan all partitions for Linux systems")"
@@ -716,7 +1023,6 @@ try_mount() {
     cmd rmdir "$dir"
 }
 
-
 #------------------------------------------------------------------------------
 # Function: unique_mp <dev> <uuid> <label>
 #
@@ -730,7 +1036,6 @@ unique_mp() {
 
     return 1
 }
-
 
 #------------------------------------------------------------------------------
 # Function: first_free_mp <subdir>
