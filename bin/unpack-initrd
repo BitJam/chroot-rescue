@@ -329,7 +329,7 @@ repack_initrd() {
     fi
 
     # Create the cpio archive, ignore our two meta-data files and then compress
-    (cd "$dir" && cmd find . | grep -E -v "^\./\.(compress|microcode)$" | cmd cpio $REPACK_ARGS) \
+    (cd "$dir" && cmd find . | exclude_files | cmd cpio $REPACK_ARGS) \
         | cmd $prog $args | cmd append_file "$file"
 
     [ "$NO_MD5" ] && return
@@ -337,6 +337,19 @@ repack_initrd() {
     # Create .md5 file
     local fname=$(basename $file)
     (cd "$targ_dir" && cmd md5sum "$(basename "$fname")" | cmd write_file "$fname.md5")
+}
+
+#------------------------------------------------------------------------------
+# Exclude commmon editor backup files, git stuff and my Private directory
+#------------------------------------------------------------------------------
+exclude_files() {
+    grep -E -v \
+        -e '^\./\.(compress|microcode)$' \
+        -e '^\./Private/'   \
+        -e '^\./Private$'   \
+        -e '^\./\.git'      \
+        -e '/\.[^/]*\.swp$' \
+        -e '/\.[^/]*~$'
 }
 
 #------------------------------------------------------------------------------
