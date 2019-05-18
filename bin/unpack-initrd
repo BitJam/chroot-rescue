@@ -161,7 +161,7 @@ unpack_initrd() {
         if ! is_empty_dir "$dir"; then
             if [ "$DO_CLEAR" ]; then
                 qsay "Clearing %s" "$(pq $dir)"
-                cmd rm -r "$dir"
+                cmd rm -rf "$dir"
             elif [ "$PRETEND" ]; then
                 :
             else
