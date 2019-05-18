@@ -11,8 +11,8 @@
 #  Documentation/x86/microcode.txt
 #------------------------------------------------------------------------------
 
-     VERSION="3.03"
-VERSION_DATE="Fri Mar  8 23:21:21 MST 2019"
+     VERSION="3.04"
+VERSION_DATE="Fri May 17 18:13:07 MDT 2019"
 
 ME=${0##*/}
 
