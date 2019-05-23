@@ -501,8 +501,6 @@ select_data() {
         if [ $MAX_COLS -ge 5 ]; then
             table=$(table_5 "$HEADER_5" "$DATA_5")
             width=$(get_width "$table")
-            echo "$table" | strip_ansi | cat -A
-            echo "width: $width"
             [ $width -le $targ_width ] && break
         fi
 
