@@ -162,7 +162,7 @@ main() {
     unset DID_SCAN
 
     # Do this before reading command line args
-    scan_mode && TOP_DIR=/media/$ME
+    scan_mode && TOP_DIR=/mnt/$ME
 
     set_colors
 
