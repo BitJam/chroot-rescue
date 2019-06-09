@@ -282,12 +282,10 @@ main() {
         test -d "$dir" || fatal $"Strange, %s is not a directory" "$dir"
 
         echo
-        # "chroot" is the name of a command
-        msg $"Chrooting into distro %s" "$(pq "$distro")"
+        msg $"Visiting distro %s" "$(pq "$distro")"
         msg $"Directory: %s  Device: %s"  "$(pq "$dir")" "$(pq $(fs_dev "$dir"))"
-        # "chroot" is the name of a command
-        msg  $"Use %s command or %s to exit the chroot"  "$(cq exit)" "$(cq "<ctrl>-d")"
-
+        $ Use the "exit" command or "<ctrl>-d" to return to the main menu"
+        msg $"Use the %s command or %s to return to main menu"  "$(cq exit)" "$(cq "<ctrl>-d")"
         local prompt="(\[$cyan\]$distro\[$nc_co\]) \[$green\]\d \t \[$magenta\]\w\[$nc_co\]"
         echo "$BAR_80"
         $sudo $chroot_cmd --quiet --add-prompt "$prompt" "$dir"
