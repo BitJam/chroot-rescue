@@ -284,7 +284,7 @@ main() {
         echo
         msg $"Visiting distro %s" "$(pq "$distro")"
         msg $"Directory: %s  Device: %s"  "$(pq "$dir")" "$(pq $(fs_dev "$dir"))"
-        $ Use the "exit" command or "<ctrl>-d" to return to the main menu"
+        # Use the "exit" command or "<ctrl>-d" to return to the main menu"
         msg $"Use the %s command or %s to return to main menu"  "$(cq exit)" "$(cq "<ctrl>-d")"
         local prompt="(\[$cyan\]$distro\[$nc_co\]) \[$green\]\d \t \[$magenta\]\w\[$nc_co\]"
         echo "$BAR_80"
