@@ -266,7 +266,7 @@ main() {
         #echo -e "$data" ; return
 
         case $(count_lines "$DATA_5") in
-            *) warn $"No Linux systems were found under %s" "$TOP_DIR"
+            0) warn $"No Linux systems were found under %s" "$TOP_DIR"
                pause exit
                exit ;;
             1) Msg $"Only one Linux system was found"  ;;
