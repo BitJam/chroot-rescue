@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Exec=x-terminal-emulator -e sudo chroot-rescue-scan
+Exec=x-terminal-emulator -e sudo chroot-rescue-scan --pause
 Icon=ceni
 Terminal=false
 Name=Chroot Rescue Scan
