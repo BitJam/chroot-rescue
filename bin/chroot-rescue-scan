@@ -7,8 +7,8 @@
 # Thanks to fehlix for help, ideas, and testing!
 #==============================================================================
 
-     VERSION="1.02"
- VERSION_DATE="Mon 19 Aug 2019 07:00:27 PM MDT"
+     VERSION="1.03"
+ VERSION_DATE="Tue 20 Aug 2019 03:58:13 AM MDT"
 
           TOP_DIR="/media"
   GRAPHICAL_MENUS="true"
