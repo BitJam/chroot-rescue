@@ -73,6 +73,7 @@ Options:
   -h  --help              Show this usage
   -m  --menu              Output menu information then exit
   -M  --max-cols=<x>      Can be 3,4,5, or 6
+  -o  --pause             Pause before exiting if nothing is found
   -s  --separator=<x>     Character to separate columns of data
                           Default: $K_IFS
   -V  --verbose           Print more, including many commands
@@ -100,6 +101,7 @@ Options:
   -h  --help              Show this usage
   -m  --menu              Output menu information then exit
   -M  --max-cols=<x>      Can be 3,4,5, or 6
+  -p  --pause             Pause before exiting if nothing is found
   -s  --separator=<x>     Character to separate columns of data
                           Default: $K_IFS
   -V  --verbose           Print more, including many commands
@@ -133,6 +135,7 @@ eval_argument() {
               -menu|m)  MENU_MODE=true                   ;;
           -max-cols|M)  MAX_COLS=$val                    ;;
           -max-cols=*)  MAX_COLS=$val                    ;;
+             -pause|p)  PAUSE=exit                       ;;
          -separator|s)  K_IFS=$val                       ;;
          -separator=*)  K_IFS=$val                       ;;
              -color=*)  COLOR_SCHEME=$val                ;;
@@ -158,7 +161,7 @@ takes_param() {
 # The main routine.  Called from the very bottom of this script.
 #==============================================================================
 main() {
-    local SHIFT  SHORT_STACK="CdhmMsvV"
+    local SHIFT  SHORT_STACK="CdhmMpsvV"
     unset DID_SCAN ONLY_32_BIT
 
     # Do this before reading command line args
@@ -243,7 +246,7 @@ main() {
         local line_cnt=$(count_lines "$data")
         case $line_cnt in
             0) ui_fatal $"No Linux systems were found under %s" "$TOP_DIR" ;;
-            1) ui_note  $"Only one Linux system was found"
+            1) ui_note  $"Only one Linux system was found" ;;
         esac
 
         ui_combo_box 5 "$title"  "$header" "$data"  $line_cnt
@@ -263,8 +266,10 @@ main() {
         #echo -e "$data" ; return
 
         case $(count_lines "$DATA_5") in
-            0) fatal $"No Linux systems were found under %s" "$TOP_DIR" ;;
-            1) Msg $"Only one Linux system was found"
+            *) warn $"No Linux systems were found under %s" "$TOP_DIR"
+               pause exit
+               exit ;;
+            1) Msg $"Only one Linux system was found"  ;;
         esac
 
         local dir
