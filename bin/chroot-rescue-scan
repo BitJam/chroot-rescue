@@ -245,7 +245,7 @@ main() {
 
         local line_cnt=$(count_lines "$data")
         case $line_cnt in
-            0) ui_fatal $"No Linux systems were found under %s" "$TOP_DIR" ;;
+            0) ui_fatal $"No Linux systems were found"     ;;
             1) ui_note  $"Only one Linux system was found" ;;
         esac
 
@@ -266,7 +266,7 @@ main() {
         #echo -e "$data" ; return
 
         case $(count_lines "$DATA_5") in
-            0) warn $"No Linux systems were found under %s" "$TOP_DIR"
+            0) warn_missing_linux
                pause exit
                exit ;;
             1) Msg $"Only one Linux system was found"  ;;
@@ -902,6 +902,18 @@ first_free_mp() {
 # True if the program name ends in "-scan"
 #------------------------------------------------------------------------------
 scan_mode() { [ -z "${ME%%*-scan}" ] ; return $? ; }
+
+
+#------------------------------------------------------------------------------
+#
+#------------------------------------------------------------------------------
+warn_missing_linux() {
+    if scan_mode; then
+        warn $"No Linux systems were found"
+    else
+        warn $"No Linux systems were found under %s" "$TOP_DIR"
+    fi
+}
 
 #------------------------------------------------------------------------------
 # Function: can_use_mp <subdir>
