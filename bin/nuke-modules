@@ -1,0 +1,244 @@
+#!/bin/bash
+
+ME=${0##*/}
+
+usage() {
+    cat <<Usage
+Usage: $ME module-1 module-2 ...
+    Remove the named modules from under the /lib/modules/\$VERSION
+    directory and put them under /lib/modules/\$VERSION-nuked. Then
+    run depmod.  This ensures the nuked modules cannot be loaded.
+    ** sigh **
+
+Abbreviations:
+    KMS         All KMS modules appropriate for this hardware
+    ALL-KMS     All KMS modules
+
+Options:
+    -d  --dir <directory>   Work on /lib/modules/... under <directory>
+    -h  --help              Show this usage
+    -k  --kernel <version>  Use <version> as the kernel version
+    -l  --list              List KMS video modules
+    -p  --pretend           Don't actually do anything
+    -q --quiet              Print less
+    -u  --undo              Restore nuked modules
+    -v  --verbose           Prinnt more to screen
+Usage
+    exit 0
+}
+
+main() {
+    local TOP_DIR K_VERSION=$(uname -r)
+    local short_stack="dhklpquv"
+
+    [ $# -eq 0 ] && usage
+    while [ $# -gt 0 ]; do
+
+        #--- unstack stacked single-letter options ---
+        case $1 in
+            -[$short_stack][$short_stack]*)
+                if echo "$1" | grep -q "^-[$short_stack]\+$"; then
+                    local arg=${1#-} ; shift
+                    set -- $(echo $arg | sed -r 's/([a-zA-Z])/ -\1 /g') "$@"
+                    continue
+                fi;;
+        esac
+
+        case $1 in
+                --dir|-d) need_param "$@"
+                          TOP_DIR=${2%/} ; shift 2  ;;
+               --help|-h) usage                     ;;
+               --list|-l) list_kms_modules          ;;
+             --kernel|-k) need_param "$@"
+                          K_VERSION=$2   ; shift 2  ;;
+            --pretend|-p) PRETEND=true   ; shift    ;;
+              --quiet|-q) QUIET=true     ; shift    ;;
+               --undo|-u) DO_UNDO=true   ; shift    ;;
+            --verbose|-v) VERBOSE=true   ; shift    ;;
+                      --) shift          ; break    ;;
+
+            -*) fatal "Unknown parameter %s" "$1" ;;
+
+                       *) break                   ;;
+        esac
+    done
+
+    [ $(id -u) -ne 0 -a -z "$PRETEND" ] && fatal "$ME must be run as root"
+
+    local module modules
+    # Convert commas to spaces then expand abbreviations
+    for module in ${*//,/ }; do
+        case $module in
+            ALL-KMS) module=$(all_kms_modules)      ;;
+                KMS) module=$(hw_kms_modules)       ;;
+        esac
+        modules="$modules $module"
+    done
+
+    local expr
+    # Convert - and _ to a regular expression and build find arguments
+    for module in $(echo $modules | sed "s/[_-]/[_-]/g"); do
+        expr="$expr${expr:+ -o} -name $module.ko"
+    done
+
+    local dir="$TOP_DIR/lib/modules/$K_VERSION"
+
+    local file dest name found
+
+    if [ "$DO_UNDO" ]; then
+
+        #----- Undo previous nuke -----
+        dir="$dir-nuked"
+        if ! test -d "$dir"; then
+            qsay "Directory %s does not exist" "$dir"
+            exit 0
+        fi
+
+        vsay ">> find $dir  -type f $expr"
+
+        while read file; do
+            name=$(basename "$file")
+            found="$found${found:+ }$name"
+            dest=${dir%-nuked}/${file#$dir/}
+            cmd mkdir -p $(dirname "$dest")
+            cmd mv "$file" "$dest"
+            cmd rmdir --parents --ignore-fail-on-non-empty "$(dirname "$file")"
+        done <<Nuke_Loop
+$(find "$dir"  -type f $expr)
+Nuke_Loop
+
+    else
+
+        #----- Normal nuke -----
+        test -d "$dir" || fatal "Directory %s does not exist" "$dir"
+        [ -z "$expr" ] && fatal "Refusing to nuke all %s modules!" "$K_VERSION"
+
+        vsay ">> find $dir  -type f $expr"
+
+        while read file; do
+            test -f "$file" || continue
+            name=$(basename "$file")
+            found="$found${found:+ }$name"
+            dest=$dir-nuked/${file#$dir/}
+            cmd mkdir -p $(dirname "$dest")
+            cmd mv "$file" "$dest"
+        done <<Nuke_Loop
+$(find "$dir/"  -type f $expr)
+Nuke_Loop
+
+    fi
+
+    if [ -z "$found" ]; then
+        qsay "No modules found"
+        exit 0
+    fi
+    qsay "Found modules: %s" "$found"
+    local t1=$(centi_seconds)
+    cmd depmod --basedir "${TOP_DIR:-/}" $K_VERSION
+    [ -z "$PRETEND" ] && qsay "Depmod took %s seconds" $(delta_seconds $t1)
+}
+
+#------------------------------------------------------------------------------
+# List all kms modules and all kms modules specific to this hardware
+#------------------------------------------------------------------------------
+list_kms_modules() {
+    local fold=fold
+    which $fold &>/dev/null || fold=cat
+
+    echo "ALL KMS modules"
+    echo $(all_kms_modules) | $fold
+    echo
+    echo "KMS modules for this hardware"
+    echo $(hw_kms_modules)
+    exit 0
+}
+
+#------------------------------------------------------------------------------
+# List all KMS modules that can be used by the hardware
+#------------------------------------------------------------------------------
+hw_kms_modules() {
+    local kms_modules_regex=$(kms_modules_regex)
+    find /sys/devices -name modalias -print0 | xargs -0 sort -u \
+        | xargs modprobe -a -D -q 2>/dev/null | sort -u \
+        | sed -n -r "s/^insmod [^ ]*($kms_modules_regex)\.ko.*/\1/p"
+}
+
+#------------------------------------------------------------------------------
+# Create a regular expression for all modules that depend on drm.ko
+#------------------------------------------------------------------------------
+kms_modules_regex() {
+    all_kms_modules | sed -e "s/[_-]/[_-]/"  \
+        | tr '\n' '|' | sed "s/|$//"
+}
+
+#------------------------------------------------------------------------------
+# Create a list of all modules that depend on drm.ko
+#------------------------------------------------------------------------------
+all_kms_modules() {
+    grep 'drm\.ko' /lib/modules/$(uname -r)/modules.dep \
+        | sed -e "s/:.*//"  \
+        -e "s|.*/||"        \
+        -e "s/\.ko$//"      \
+        | grep -v -e "^drm" -e "^ttm$" \
+        | sort
+}
+
+#------------------------------------------------------------------------------
+# Get time since kernel started in 1/100ths of a second
+#------------------------------------------------------------------------------
+centi_seconds() { cut -d" " -f22 /proc/self/stat; }
+
+#------------------------------------------------------------------------------
+# Produce a delta-t in seocnds
+#------------------------------------------------------------------------------
+delta_seconds() {
+    local dt=$(($(centi_seconds) - $1))
+    printf "%03d" $dt | sed -r 's/(..)$/.\1/'
+}
+
+#------------------------------------------------------------------------------
+# Display a formated message
+#------------------------------------------------------------------------------
+say() {
+    local fmt=$1 ; shift
+    printf "$fmt\n" "$@"
+}
+
+#------------------------------------------------------------------------------
+# Display message only if in VERBOSE mode
+#------------------------------------------------------------------------------
+vsay() { [ "$VERBOSE" ] && say "$@" ; }
+
+#------------------------------------------------------------------------------
+# Display message only if not in QUIET mode
+#------------------------------------------------------------------------------
+qsay() { [ "$QUIET" ] || say "$@" ; }
+
+#------------------------------------------------------------------------------
+# Perform the passed in command unless PRETEND.  If PRETEND or VERBOSE then
+# display the command
+#------------------------------------------------------------------------------
+cmd() {
+    [ -z "$PRETEND$VERBOSE" ] || echo ">> $*"
+    [ -z "$PRETEND" ]         && "$@"
+}
+
+#------------------------------------------------------------------------------
+# Make sure there are at least 2 input paramters and make sure the 2nd one
+# does not start with a "-".
+#------------------------------------------------------------------------------
+need_param() {
+    [ $# -lt 2 ] && fatal "A parameter is required after option %s" "$1"
+    [ -n "$2" -a -z "${2##-*}" ] && fatal "Suspicious parameter after option %s" "$1"
+}
+
+#------------------------------------------------------------------------------
+# Send error message to stderr and then exit
+#------------------------------------------------------------------------------
+fatal() {
+    local fmt=$1 ; shift
+    printf "$fmt\n" "$@" >&2
+    exit 3
+}
+
+main "$@"
