@@ -394,7 +394,7 @@ get_label() {
     local dir=$1
     local dev=$(df "$dir" | awk 'END{print $1}')
     test -b "$dev" || return
-    local label=$(lsblk -no label "$dev")
+    local label=$(lsblk -no LABEL "$dev")
     echo "${label:-  -}"
 
 }
@@ -810,7 +810,7 @@ scan_devices() {
         #printf "mounted %s  at %s\n"  "$NAME"  "$mntpnt"
 
     done<<Scan_Devices
-$(lsblk --noheading -I $MAJOR_DEV_LIST -o name,type,fstype,label,mountpoint --pairs)
+$(lsblk --noheading -I $MAJOR_DEV_LIST -o NAME,TYPE,FSTYPE,LABEL,MOUNTPOINT --pairs)
 Scan_Devices
 
     DID_SCAN=true
