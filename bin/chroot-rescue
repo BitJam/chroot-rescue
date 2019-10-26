@@ -290,8 +290,23 @@ test -r ~/.bashrc && source ~/.bashrc
 alias ls="ls --color=auto -F"
 alias ll="ls --color=auto -lhF"
 alias la="ls --color=auto -FA"
+
+alias halt="exit;"
+alias shutdown="exit;"
+alias poweroff="exit;"
+alias reboot="exit;"
+
 PS1="$ps1"
+
 Bashrc
+
+    # If there is only one kernel then we may was well specify it
+    local kernel=$(ls $dir/lib/modules/)
+    [ "$(echo "$kernel" | wc -l)" = 1 ] || return 0
+    cat<<Mod_Probe >> "$file"
+alias modprobe="modprobe -S $kernel"
+Mod_Probe
+
     return 0
 }
 
