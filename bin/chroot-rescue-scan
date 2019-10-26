@@ -773,7 +773,6 @@ men_note() {
     printf "note: $fmt\n" "$@" | strip_ansi
 }
 
-
 #------------------------------------------------------------------------------
 # Mount all likely partitions.  Bind mount those that are already mounted.
 #------------------------------------------------------------------------------
@@ -791,12 +790,13 @@ scan_devices() {
         [ "$MOUNTPOINT" = "/" ] && continue
 
         # Don't chroot to something mounted under same top directory
-        [ -n "$MOUNTPOINT" -a  -z "${MOUNTPOINT##$TOP_DIR*}" ] && continue
+        [ -n "$MOUNTPOINT" -a -z "${MOUNTPOINT##$TOP_DIR*}" ] && continue
 
         case $FSTYPE in
-                 ext[234]) ;;
-            btrfs|jfs|xfs) ;;
-                        *) continue ;;
+                      ext[234]) ;;
+              reiserfs|reiser4) ;;
+            btrfs|jfs|xfs|fs2f) ;;
+                             *) continue ;;
         esac
 
         local dev="/dev/$NAME"
