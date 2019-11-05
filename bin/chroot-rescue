@@ -151,7 +151,7 @@ main() {
 
     # We need this in add_resolvconf() as well as the main event
     SET_ARCH=linux32
-    test -d "$dir/lib64" && SET_ARCH=linux64
+    ls "$dir"/lib64/ld-linux-x86-64.so* &>/dev/null && SET_ARCH=linux64
 
     test -d "$dir" || fatal $"%s is not a directory" "$(wq $dir)"
 
