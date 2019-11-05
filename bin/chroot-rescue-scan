@@ -380,7 +380,7 @@ human_size() {
 # Eiher 32-bit or 64-bit based on finding the /lib64 directory
 #------------------------------------------------------------------------------
 get_arch() {
-    if test -d "$dir/lib64"; then
+    if ls "$dir"/lib64/ld-linux-x86-64.so* &> /dev/null; then
         echo "64-bit"
     else
         echo "32-bit"
