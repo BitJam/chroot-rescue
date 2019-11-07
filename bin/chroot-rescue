@@ -22,12 +22,13 @@ SUB_DIRS="sys proc dev run tmp"
 
 MY_ENV="HOME=/root"
 
-WORK_DIR=/run/$ME
+WORK_DIR=/tmp/$ME
 
 # On host
+HOST_DIR="/tmp/$ME"
 LOCK_FILE="/run/lock/$ME"
-MY_RESOLV_DIR=$WORK_DIR/resolvconf
-MY_HOSTNAME_FILE=$WORK_DIR/hostname
+MY_RESOLV_DIR=$HOST_DIR/resolvconf
+MY_HOSTNAME_FILE=$HOST_DIR/hostname
 
 # On target
 CNT_FNAME="$WORK_DIR-count"
@@ -46,7 +47,7 @@ usage() {
     cat<<Usage
 Usage: $ME [options] <directory>  [[--] <command> [<args>]]
 Bind mount sys/, proc/, dev/, etc file systems and under <directory>.
-Mount run/ and tmp/ as tmpfs and then chroot into that directory using
+Mount tmp/ as tmpfs and then chroot into that directory using
 a given command or /bin/bash or /bin/sh as defaults.
 
 If <command> is given we try to find that command under the directory
@@ -191,8 +192,8 @@ main() {
     CNT_FILE="$dir/$CNT_FNAME"
     start_lock "$LOCK_FILE" "$CNT_FILE"
 
-    TO_RMDIR="$WORK_DIR"
-    cmd mkdir -p $WORK_DIR
+    TO_RMDIR="$HOST_DIR"
+    cmd mkdir -p "$HOST_DIR"
 
     local rc_args
     if [ -z "$WAS_LOCKED" ]; then
@@ -214,11 +215,10 @@ main() {
             test -d "$targ"       || continue
 
             case $s in
-                run) cmd mount -t tmpfs -o size=100m,nodev,mode=755 tmpfs "$targ"
-                     (cd /run && ls -A | cmd cpio -pdm --quiet $targ/)            ;;
+                run) cmd mount --rbind /$s "$targ"                                ;;
                 tmp) cmd mount -t tmpfs -o size=20%,nodev,mode=1777 tmpfs "$targ" ;;
             sys|dev) cmd mount --rbind --make-rslave /$s "$targ"                  ;;
-                  *) cmd mount --rbind /$s "$targ" ;;
+                  *) cmd mount --rbind /$s "$targ"                                ;;
             esac
             is_mountpoint "$targ" && TO_UMOUNT="$targ\n$TO_UMOUNT"
         done
@@ -271,7 +271,7 @@ main() {
 }
 
 #------------------------------------------------------------------------------
-# Create a bashrc file under $CHROOT/run/ that will be sourced when the bash
+# Create a bashrc file under $CHROOT/tmp/ that will be sourced when the bash
 # shell starts.  This allows is to set the prompt in the chroot.
 #------------------------------------------------------------------------------
 create_bashrc() {
@@ -408,8 +408,8 @@ stop_lock() {
 #------------------------------------------------------------------------------
 copy_in_xauthority() {
     local dir=$1
-    [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/run" ] || return 1
-    [ "$(fs_type "$dir/run")" = tmpfs ] || return 1
+    [ -n "$DISPLAY" -a -n "$XAUTHORITY" -a -e "$dir/tmp" ] || return 1
+    [ "$(fs_type "$dir/tmp")" = tmpfs ] || return 1
 
     local xauth_file=$(readlink -f "$XAUTHORITY")
     test -f "$xauth_file" || return 1
