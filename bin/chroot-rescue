@@ -6,8 +6,8 @@
 # Thanks to fehlix for help, ideas and, testing!
 #==============================================================================
 
-      VERSION="1.03"
- VERSION_DATE="Mon 04 Nov 2019 10:04:34 PM MST"
+      VERSION="1.04"
+ VERSION_DATE="Wed 06 Nov 2019 07:15:00 PM MST"
 
 ME=${0##*/}
 
