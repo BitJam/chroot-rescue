@@ -120,15 +120,16 @@ main() {
     local SHIFT SHORT_STACK="hnNpPtuVv" got_cmd
 
     read_params "$@"
-    shift $SHIFT
+    run_me_as_root "$@"
 
+    shift $SHIFT
     [ $# -eq 0 ] && fatal $"Expected a directory or device name"
+
     local dir=${1%/} ; shift
     CHROOT_DIR=$dir
 
     : ${ADD_PROMPT:=(\\[$cyan\\]$dir\\[$nc_co\\]) \\[$green\\]\\d \\t \\[$magenta\\]\\w\\[$nc_co\\]}
 
-    [ "$(id -u)" -eq 0 ] || fatal $"The %s program must be run as root" "$(wq $ME)"
     HOME=/root
 
     local cmd
@@ -776,6 +777,23 @@ pause_exit() {
     say $"Please press %s to exit" "$(pq "<Enter>")"
     local ans
     read ans
+}
+
+#------------------------------------------------------------------------------
+# Issue a simple fatal error if we are not running as root
+#------------------------------------------------------------------------------
+need_root() {
+    [ $(id -u) -eq 0 ] || fatal 099 $"This script must be run as root"
+    HOME=/root
+}
+
+#------------------------------------------------------------------------------
+# run ME as root (thanks fehlix!)
+#------------------------------------------------------------------------------
+run_me_as_root() {
+    [ $(id -u) -eq 0 ] && return
+    sudo -nv &>/dev/null || warn $"This script must be run as root"
+    exec sudo -p $"Please enter your user password: " "$0" "$@" || need_root
 }
 
 #------------------------------------------------------------------------------
