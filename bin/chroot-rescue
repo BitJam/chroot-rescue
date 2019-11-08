@@ -121,6 +121,7 @@ main() {
 
     read_params "$@"
     run_me_as_root "$@"
+    HOME=/root
 
     shift $SHIFT
     [ $# -eq 0 ] && fatal $"Expected a directory or device name"
@@ -784,7 +785,6 @@ pause_exit() {
 #------------------------------------------------------------------------------
 need_root() {
     [ $(id -u) -eq 0 ] || fatal 099 $"This script must be run as root"
-    HOME=/root
 }
 
 #------------------------------------------------------------------------------
