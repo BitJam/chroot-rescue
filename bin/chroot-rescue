@@ -217,13 +217,22 @@ main() {
             test -d "$targ"       || continue
 
             case $s in
-                run) cmd mount --rbind /$s "$targ"                                ;;
+                run) cmd mount -t tmpfs -o size=100m,nodev,mode=755 tmpfs "$targ" ;;
+                #run) cmd mount --rbind /$s "$targ"                                ;;
                 tmp) cmd mount -t tmpfs -o size=20%,nodev,mode=1777 tmpfs "$targ" ;;
             sys|dev) cmd mount --rbind --make-rslave /$s "$targ"                  ;;
                   *) cmd mount --rbind /$s "$targ"                                ;;
             esac
             is_mountpoint "$targ" && TO_UMOUNT="$targ\n$TO_UMOUNT"
         done
+
+        # Bind mount /run/udev to get lsblk working correctly in the target
+        local udev_dir=/run/udev
+        if test -d $udev_dir; then
+            targ="$dir$udev_dir"
+            mkdir -p "$targ"
+            cmd mount --rbind $udev_dir "$targ"
+        fi
 
         [ -z "$NO_NETWORK" ] && add_resolvconf "$dir"
 
