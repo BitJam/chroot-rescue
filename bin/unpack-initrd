@@ -120,6 +120,7 @@ takes_param() {
      -compress|c) return 0 ;;
           -dir|d) return 0 ;;
          -from|f) return 0 ;;
+         -file|f) return 0 ;;
         -level|l) return 0 ;;
          -xtra|x) return 0 ;;
     esac
