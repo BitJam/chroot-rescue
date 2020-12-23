@@ -66,6 +66,7 @@ Options:
   -P --prompt=<str>      Use this string as the prompt
   -q --quiet             Only print error messages
   -t --title=<str>       Set the window title while in the chroot
+  -T --tmpfs=<x,y,z>     Comma separated list of directories to mount tmpfs
   -u --umount            Umount all subdirectories of the given directory
   -V --verbose           Show commands that get executed
   -v --version           Show version and exit
@@ -93,6 +94,8 @@ eval_argument() {
              -quiet|q) QUIET=true                      ;;
              -title|t) WINDOW_TITLE=$var               ;;
              -title=*) WINDOW_TITLE=$var               ;;
+             -tmpfs|T) TMP_FS=$val                     ;;
+             -tmpfs=*) TMP_FS=$val                     ;;
             -umount|u) UMOUNT_ALL=true                 ;;
            -verbose|V) VERBOSE=true                    ;;
            -version|v) show_version ; exit 0           ;;
@@ -108,6 +111,7 @@ takes_param() {
      -add-prompt|a) return 0 ;;
          -prompt|P) return 0 ;;
           -title|t) return 0 ;;
+          -tmpfs|T) return 0 ;;
     esac
     return 1
 }
@@ -117,7 +121,8 @@ takes_param() {
 #------------------------------------------------------------------------------
 main() {
     [ $# -eq 0 ] && usage
-    local SHIFT SHORT_STACK="hnNpPtuVv" got_cmd
+    local SHIFT SHORT_STACK="hnNpPtTuVv" got_cmd
+    local TMP_FS
 
     read_params "$@"
     run_me_as_root "$@"
@@ -226,7 +231,7 @@ main() {
             is_mountpoint "$targ" && TO_UMOUNT="$targ\n$TO_UMOUNT"
         done
 
-        # Bind mount /run/udev to get lsblk working correctly in the target
+         # Bind mount /run/udev to get lsblk working correctly in the target
         local udev_dir=/run/udev
         if test -d $udev_dir; then
             targ="$dir$udev_dir"
@@ -246,6 +251,21 @@ main() {
         copy_in_xauthority "$dir" && MY_ENV="$MY_ENV XAUTHORITY=$XAUTH_FILE"
     fi
 
+    # Mount more directories as tmpfs
+    for s in ${TMP_FS//,/ }; do
+        targ="$dir/${s#/}"
+        if test -d "$targ"; then
+            if is_mountpoint "$targ"; then
+                warn "%s is already a mountpoint.  Will not mount tmpfs." "$(pq $targ)"
+            else
+                mount -t tmpfs -o size=20% tmpfs "$targ"
+            fi
+        else
+            warn "%s is not a subdirectory under %s" "$(pq $s)" "$(pq $dir)"
+        fi
+    done
+
+
     # add a bashrc file to change the prompt if we are running bash by default
     if [ $# -eq 0 -a "$cmd" = "/bin/bash" -a -z "$got_cmd" ]; then
         create_bashrc "$dir" "$ADD_PROMPT" "$NEW_PROMPT"
@@ -253,7 +273,6 @@ main() {
     fi
 
     # --- do the chroot --------------------------------------------------------
-    :
 
     # "chroot" is the name of a command
     [ -z "$WINDOW_TITLE" ] && WINDOW_TITLE=$(printf $"Chroot into %s" "$dir")
