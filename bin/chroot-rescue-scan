@@ -173,7 +173,9 @@ main() {
 
     # Let non-root users get usage.  Need to get --ignore-config early.
     read_early_params "$@"
-    #need_root
+
+    run_me_as_root "$@"
+
     read_params "$@"
 
     set_colors $COLOR_SCHEME
@@ -185,8 +187,6 @@ main() {
 
     shift $SHIFT
     fatal_n0 $# $"Extra command line parameters %s" "$*"
-
-    need_root
 
     case $(uname -m) in
           i686) ONLY_32_BIT=true ;;
