@@ -92,8 +92,8 @@ eval_argument() {
             -prompt|P) NEW_PROMPT=$val                 ;;
             -prompt=*) NEW_PROMPT=$val                 ;;
              -quiet|q) QUIET=true                      ;;
-             -title|t) WINDOW_TITLE=$var               ;;
-             -title=*) WINDOW_TITLE=$var               ;;
+             -title|t) WINDOW_TITLE=$val               ;;
+             -title=*) WINDOW_TITLE=$val               ;;
              -tmpfs|T) TMP_FS=$val                     ;;
              -tmpfs=*) TMP_FS=$val                     ;;
             -umount|u) UMOUNT_ALL=true                 ;;
